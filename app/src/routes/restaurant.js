@@ -8,7 +8,6 @@ var { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient()
 
 router.get('/', function(req, res) {
-  result = utils.send_email("steven.panxd@gmail.com", "Test Email", "<h1>this is a test email</h1>");
   console.log(result);
   res.send("restaurant api");
 });

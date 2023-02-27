@@ -14,10 +14,10 @@ class Utils {
         const transporter = nodemailer.createTransport({
             port: process.env.MAIL_PORT,               // true for 465, false for other ports
             host: process.env.MAIL_HOST,
-                auth: {
-                    user: process.env.MAIL_USER,
-                    pass: process.env.MAIL_PASS,
-                    },
+            auth: {
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASS,
+            },
             secure: true,
         });
         
@@ -30,9 +30,11 @@ class Utils {
         
         transporter.sendMail(mailData, function(error, info){
             if (error) {
-              console.log(error);
+              console.log(error.message);
+              return false;
             } else {
               console.log('Email sent: ' + info.response);
+              return true;
             }
         });
     }
