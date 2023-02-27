@@ -6,8 +6,8 @@ var cors = require('cors');
 var swaggerUi = require('swagger-ui-express');
 var YAML = require('yamljs');
 
-var indexRouter = require('./routes/index');
-var restaurantRouter = require("./routes/restaurant");
+var indexRouter = require('./src/routes/index');
+var restaurantRouter = require("./src/routes/restaurant");
 
 var app = express();
 
