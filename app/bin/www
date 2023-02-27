@@ -89,3 +89,7 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
+
+
+// Set up websocket
+var expressWs = require('express-ws')(app, server);

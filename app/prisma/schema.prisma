@@ -2,3 +2,121 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Verification {
+  NOTVERIFIED
+  VERIFIED
+  NOTPASSED
+}
+
+enum CardType {
+  VISA
+  MASTERCARD
+  DISCOVER
+  AMEX
+}
+
+enum PaymentStatus {
+  PENDING
+  POSTED
+  PAYING
+  PAID
+  REFUNDING
+  REFUNDED
+}
+
+enum OrderStatus {
+  CREATED
+  ASSIGNED
+  PICKEDUP
+  DELIVERED
+}
+
+model Driver {
+  id Int @id @default(autoincrement())
+  email String @unique
+  phone String @unique
+  passwordHash String
+  driverLicenseNumber String
+  driverLicenseImage String
+  verification Verification @default(NOTVERIFIED)
+  status Boolean @default(false)
+  firstName String
+  lastName String?
+  middleName String?
+  bankAccountNumber String
+  bankRoutingNumber String
+  receivedTransactions PaymentTransaction[]
+  orders deliveryOrder[]
+}
+
+model Restaurant {
+  id Int @id @default(autoincrement())
+  email String @unique
+  phone String @unique
+  passwordHash String
+  name String
+  verification Verification @default(NOTVERIFIED)
+  street String
+  state String
+  zipCode String
+  latitude Decimal @db.Decimal(16, 12)
+  longtitude Decimal @db.Decimal(16, 12)
+  creditCards CreditCard[]
+  sentTransactions PaymentTransaction[]
+  orders deliveryOrder[]
+}
+
+model CreditCard {
+  id Int @id @default(autoincrement())
+  cardNumber String
+  name String
+  street String
+  state String
+  zipCode String
+  cvv String
+  cardType CardType
+  restaurantId Int
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  relatedTransactions PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id Int @id @default(autoincrement())
+  amount Decimal @db.Decimal(15, 2)
+  status PaymentStatus @default(PENDING)
+  payerId Int
+  payeeId Int
+  cardId Int
+  payer Restaurant @relation(fields: [payerId], references: [id])
+  payee Driver @relation(fields: [payeeId], references: [id])
+  creditCard CreditCard @relation(fields: [cardId], references: [id])
+  orders deliveryOrder[]
+}
+
+model deliveryOrder {
+  id Int @id @default(autoincrement())
+  estimatedDeliveryTime DateTime
+  estimatedDeliveryCost Decimal @db.Decimal(15, 2)
+  actualDeliveryTime DateTime?
+  actualDeliveryCost Decimal @db.Decimal(15, 2)
+  status OrderStatus @default(CREATED)
+  customerStreet String
+  customerState String
+  customerZipCode String
+  customerLatitude Decimal @db.Decimal(16, 12)
+  customerLongtitude Decimal @db.Decimal(16, 12)
+  customerName String
+  customerEmail String
+  customerPhone String
+  restaurantId Int
+  driverId Int?
+  transactionId Int
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  driver Driver? @relation(fields: [driverId], references: [id])
+  transaction PaymentTransaction @relation(fields: [transactionId], references: [id])
+}
