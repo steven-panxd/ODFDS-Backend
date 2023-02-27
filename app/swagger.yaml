@@ -19,3 +19,24 @@ paths:
       responses:
         '200':
           description: OK
+  /restaurant/emailCode:
+    get:
+      description: Get an email verification code for creating a restaurant account
+      tags:
+      - Restaurant
+      summary: Get an email code
+      parameters:
+      - in: query
+        name: email
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Email code sent
+        '400':
+          description: Invalid email format
+        '403':
+          description: Email is already taken or Code is already sent
+        '500':
+          description: Can not send out email, server error

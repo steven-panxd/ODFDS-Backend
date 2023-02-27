@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+// load .env configuration
+require('dotenv').config();
+
 /**
  * Module dependencies.
  */
-
 var app = require('../app');
 var debug = require('debug')('odfds:server');
 var http = require('http');
@@ -12,7 +14,6 @@ var http = require('http');
 /**
  * Get port from environment and store in Express.
  */
-require('dotenv').config();
 var port = normalizePort(process.env.NODE_DOCKER_PORT || '8080');
 app.set('port', port);
 
