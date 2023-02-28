@@ -36,7 +36,6 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=$MONGO_DB_USER
       - MONGO_INITDB_ROOT_PASSWORD=$MONGO_DB_PASSWORD
-      - MONGO_INITDB_DATABASE=$MONGO_DB_DATABASE
     command: ["--bind_ip_all"]
     ports:
       - $MONGO_DB_LOCAL_PORT:$MONGO_DB_DOCKER_PORT
