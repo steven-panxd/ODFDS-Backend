@@ -40,3 +40,25 @@ paths:
           description: Email is already taken or Code is already sent
         '500':
           description: Can not send out email, server error
+  /restaurant:
+    get:
+      description: Log in an restaurant account and receive a json web token
+      tags:
+      - Restaurant
+      summary: Log in restaurant account
+      parameters:
+      - in: query
+        name: email
+        schema: 
+          type: string
+        required: true
+      - in: query
+        name: password
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Login succeed, receive an json web toke
+        '400':
+          description: Invalid parameters

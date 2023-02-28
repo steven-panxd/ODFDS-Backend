@@ -12,8 +12,14 @@ var restaurantRouter = require("./src/routes/restaurant");
 
 // connect to MongoDB
 mongoose.set("strictQuery", false);
-console.log(process.env.MONGO_DB_URI);
-mongoose.connect(process.env.MONGO_DB_URI).then(_ => {
+let MONGO_DB_URI;
+if (process.env.MONGO_DB_USER && process.env.MONGO_DB_PASSWORD) {
+  MONGO_DB_URI = `mongodb://${process.env.MONGO_DB_USER}:${process.env.MONGO_DB_PASSWORD}@${process.env.MONGO_DB_HOST}:${process.env.MONGO_DB_DOCKER_PORT}/`;
+} else {
+  MONGO_DB_URI = `mongodb://${process.env.MONGO_DB_HOST}:${process.env.MONGO_DB_DOCKER_PORT}/`;
+}
+console.log(MONGO_DB_URI);
+mongoose.connect(MONGO_DB_URI).then(_ => {
   console.log('Connected to MongoDB');
 }).catch(error => {
   console.log(error.message);
