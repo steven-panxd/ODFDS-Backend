@@ -113,16 +113,16 @@ router.post(
 
 
 // log in
-router.get(
-  "/",
-  query('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
+router.post(
+  "/token",
+  body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
       return Promise.reject("Account does not exist");
     }
     req.account = accountExist;
   }),
-  query('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
+  body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.account.passwordHash)) {
       return Promise.reject("Incorrect password");
     };

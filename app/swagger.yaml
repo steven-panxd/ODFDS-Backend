@@ -62,25 +62,17 @@ paths:
                       message: Code is already sent, please try again after 5 mins
         '500':
           description: Can not send out email, server error
-  /restaurant:
-    get:
+  /restaurant/token:
+    post:
       description: Log in an restaurant account and receive a json web token
       tags:
       - Restaurant
       summary: Log in restaurant account
-      parameters:
-      - in: query
-        name: email
-        schema: 
-          type: string
-          description: restaurant account email address, unique
-        required: true
-      - in: query
-        name: password
-        schema: 
-          type: string
-          description: restaurant account password
-        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestaurantLoginRequest'
       responses:
         '200':
           description: Login succeed, receive an json web toke
@@ -126,6 +118,7 @@ paths:
                       field: password
                       value: A1b2c3.
                       message: Incorrect password
+  /restaurant:
     post:
       description: Sign up a new restaurant accout
       tags:
@@ -293,6 +286,18 @@ components:
               type: number
               description: restaurant longtitude
               example: -121.88420310757643
+    RestaurantLoginRequest:
+      title: Restaurant account log in request body
+      type: object
+      properties:
+        email:
+          type: string
+          description: email address
+          example: steven.panxd@gmail.com
+        password:
+          type: string
+          description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
+          example: A1b2c.
     RestaurantSignUpRequest:
       title: Restaurant account sign up request body
       type: object
