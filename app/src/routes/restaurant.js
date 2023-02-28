@@ -54,7 +54,7 @@ router.post(
       return Promise.reject("Email is already taken, please try another email address");
     }
   }),
-  body('password').exists().isStrongPassword().withMessage("Invalid password"),
+  body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
   body('phone').exists().isMobilePhone().withMessage("Invalid phone number").custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {phone: value}});
     if (accountExist) {
@@ -63,6 +63,7 @@ router.post(
   }),
   body('name').exists().withMessage("Please input restaurant name"),
   body('street').exists().withMessage("Please select restaurant location"),
+  body('city').exists().withMessage("Please select restaurant location"),
   body('state').exists().withMessage("Please select restaurant location"),
   body('zipCode').exists().withMessage("Please select restaurant location"),
   body('latitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid latitude'),
@@ -86,6 +87,7 @@ router.post(
     const phone = req.body.phone;
     const name = req.body.name;
     const street = req.body.street;
+    const city = req.body.city;
     const state = req.body.state;
     const zipCode = req.body.zipCode;
     const latitude = req.body.latitude;
@@ -98,6 +100,7 @@ router.post(
         phone: phone,
         name: name,
         street: street,
+        city: city,
         state: state,
         zipCode: zipCode,
         latitude: latitude,
@@ -119,7 +122,7 @@ router.get(
     }
     req.account = accountExist;
   }),
-  query('password').exists().isStrongPassword().withMessage("Invalid password").custom(async (value, { req }) => {
+  query('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.account.passwordHash)) {
       return Promise.reject("Incorrect password");
     };
@@ -129,9 +132,11 @@ router.get(
     Utils.makeResponse(res, 200, Utils.generateRestaurantToken(req.account.id));
 });
 
-// test loged in
+// get restaurant profile
 router.get(
-  "/test", Utils.loginRequired, function(req, res) {
+  "/profile", 
+  Utils.loginRequired, 
+  function(req, res) {
     Utils.makeResponse(res, 200, req.user);
   }
 );

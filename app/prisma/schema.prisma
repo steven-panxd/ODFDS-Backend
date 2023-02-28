@@ -62,6 +62,7 @@ model Restaurant {
   name String
   verification Verification @default(NOTVERIFIED)
   street String
+  city String
   state String
   zipCode String
   latitude Decimal @db.Decimal(16, 12)
@@ -76,6 +77,7 @@ model CreditCard {
   cardNumber String
   name String
   street String
+  city String
   state String
   zipCode String
   cvv String
@@ -106,6 +108,7 @@ model deliveryOrder {
   actualDeliveryCost Decimal @db.Decimal(15, 2)
   status OrderStatus @default(CREATED)
   customerStreet String
+  customerCity String
   customerState String
   customerZipCode String
   customerLatitude Decimal @db.Decimal(16, 12)

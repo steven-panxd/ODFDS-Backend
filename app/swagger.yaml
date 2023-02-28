@@ -7,18 +7,9 @@ servers:
   - url: http://127.0.0.1:3000
     description: Development Server
 tags:
-- name: Test
+- name: Restaurant
 
 paths:
-  /:
-    get:
-      description: Test API
-      tags:
-      - Test
-      summary: First Test API
-      responses:
-        '200':
-          description: OK
   /restaurant/emailCode:
     get:
       description: Get an email verification code for creating a restaurant account
@@ -34,10 +25,41 @@ paths:
       responses:
         '200':
           description: Email code sent
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Code sent to your email, it will expire in 5 mins
         '400':
-          description: Invalid email format
-        '403':
-          description: Email is already taken or Code is already sent
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid email address format:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: abc.com
+                      message: Invalid email address
+                Email address already taken:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Email is already taken, please try another email address
+                Email code already sent:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Code is already sent, please try again after 5 mins
         '500':
           description: Can not send out email, server error
   /restaurant:
@@ -51,14 +73,282 @@ paths:
         name: email
         schema: 
           type: string
+          description: restaurant account email address, unique
         required: true
       - in: query
         name: password
         schema: 
           type: string
+          description: restaurant account password
         required: true
       responses:
         '200':
           description: Login succeed, receive an json web toke
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
         '400':
           description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid account:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.com
+                      message: Invalid account
+                Account not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven@gmail.com
+                      message: Account does not exist
+                Invalid password:
+                  value:
+                    code: 400
+                    data:
+                      field: password
+                      value: abc123
+                      message: Invalid password
+                Incorrect password:
+                  value:
+                    code: 400
+                    data:
+                      field: password
+                      value: A1b2c3.
+                      message: Incorrect password
+    post:
+      description: Sign up a new restaurant accout
+      tags:
+      - Restaurant
+      summary: Sign up a new restaurant accout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestaurantSignUpRequest'
+      responses:
+        '200':
+          description: Sign up succeed, restaurant account data inserted to the database
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Restaurant account created successfully
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Email verification code expired:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is expired, please try to request a new one
+                Wrong Email verification code:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is wrong, please try again
+                Email address already taken:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Email is already taken, please try another email address
+  /restaurant/profile:
+    get:
+      description: Get a restaurant profile (basic information)
+      tags:
+      - Restaurant
+      summary: Get a restaurant profile
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: restaurant access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      responses:
+        '200':
+          description: return restaurant profile information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/RestaurantProfileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+components:
+  schemas:
+    GeneralResponse:
+      title: General valid response body
+      type: object
+      properties:
+        code:
+          type: number
+          description: HTTP status code
+          example: 200
+        data:
+          type: string
+          description: response data
+          example: succeed
+    GeneralInvalidResponse:
+      title: General invalid parameter response body
+      type: object
+      properties:
+        code:
+          type: number
+          description: HTTP status code
+          example: 400
+        data:
+          type: object
+          properties:
+            field:
+              type: string
+              description: error field
+            value:
+              type: string
+              description: backend received error value
+            message:
+              type: string
+              description: error message
+          example:
+            field: email
+            value: abc.com
+            message: Invalid email address
+    RestaurantProfileResponse:
+      title: Restaurant profile response body
+      type: object
+      properties:
+        code:
+          type: number
+          description: HTTP status code
+          example: 200
+        data:
+          type: object
+          properties:
+            id:
+              type: number
+              description: restaurant account id
+              example: 1
+            email:
+              type: string
+              description: email address, unique
+              example: steven.panxd@gmail.com
+            phone:
+              type: string
+              description: phone number, unique
+              example: 4081234567
+            name:
+              type: string
+              description: restaurant name
+              example: My Restaurant
+            street:
+              type: string
+              description: restaurant street
+              example: 1 Washington Square
+            city:
+              type: string
+              description: restaurant city
+              example: San Jose
+            state:
+              type: string
+              description: restaurant state
+              example: California
+            zipCode:
+              type: string
+              description: restaurant zipCode
+              example: 95192
+            latitude:
+              type: number
+              description: restaurant latitude
+              example: 37.33482353097262
+            longtitude:
+              type: number
+              description: restaurant longtitude
+              example: -121.88420310757643
+    RestaurantSignUpRequest:
+      title: Restaurant account sign up request body
+      type: object
+      properties:
+        email:
+          type: string
+          description: email address, unique
+          example: steven.panxd@gmail.com
+        code:
+          type: string
+          description: email verification code
+          example: 123456
+        password:
+          type: string
+          description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
+          example: A1b2c.
+        phone:
+          type: string
+          description: phone number, unique
+          example: 4081234567
+        name:
+          type: string
+          description: restaurant name
+          example: My Restaurant
+        street:
+          type: string
+          description: restaurant street
+          example: 1 Washington Square
+        city:
+          type: string
+          description: restaurant city
+          example: San Jose
+        state:
+          type: string
+          description: restaurant state
+          example: California
+        zipCode:
+          type: string
+          description: restaurant zipCode
+          example: 95192
+        latitude:
+          type: number
+          description: restaurant latitude
+          example: 37.33482353097262
+        longtitude:
+          type: number
+          description: restaurant longtitude
+          example: -121.88420310757643
+      required:
+        - email
+        - code
+        - password
+        - phone
+        - name
+        - street
+        - state
+        - zipCode
+        - latitude
+        - longtitude

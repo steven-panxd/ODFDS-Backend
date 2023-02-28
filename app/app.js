@@ -18,7 +18,6 @@ if (process.env.MONGO_DB_USER && process.env.MONGO_DB_PASSWORD) {
 } else {
   MONGO_DB_URI = `mongodb://${process.env.MONGO_DB_HOST}:${process.env.MONGO_DB_DOCKER_PORT}/`;
 }
-console.log(MONGO_DB_URI);
 mongoose.connect(MONGO_DB_URI).then(_ => {
   console.log('Connected to MongoDB');
 }).catch(error => {
@@ -42,6 +41,7 @@ const swaggerRouter = express.Router();
 const swaggerDocument = YAML.load('./swagger.yaml');
 swaggerRouter.use('/api-docs', swaggerUi.serve);
 swaggerRouter.get('/api-docs', swaggerUi.setup(swaggerDocument));
+// swaggerRouter.get('/api-docs', swaggerUi.setup(swaggerDocument, { swaggerOptions: { docExpansion: "full" } }));
 app.use(swaggerRouter);
 
 // Set up other apis

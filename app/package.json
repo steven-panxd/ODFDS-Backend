@@ -27,5 +27,9 @@
   "devDependencies": {
     "nodemon": "^2.0.20",
     "dotenv-cli": "^7.0.0"
+  },
+  "nodemonConfig": {
+    "ignore": ["**/test/**", "**/docs/**"],
+    "ext": "js,json,yaml,prisma,yml"
   }
 }
