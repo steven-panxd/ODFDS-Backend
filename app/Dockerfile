@@ -1,7 +1,12 @@
-FROM node:14
+FROM node:16
 
-WORKDIR /ODFDS
+RUN apt-get update && apt-get install -y netcat
+
+WORKDIR /app
+
 COPY package.json .
 RUN npm install
 COPY . .
-CMD npm start
+RUN npx prisma generate
+
+CMD ["./start.sh"]
