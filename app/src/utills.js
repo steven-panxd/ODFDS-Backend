@@ -1,4 +1,4 @@
-var crypto = require('crypto');
+var crypto = require('node:crypto');
 var jwt = require('jsonwebtoken');
 var nodemailer = require('nodemailer');
 var { validationResult } = require('express-validator');
@@ -121,7 +121,7 @@ class Utils {
 
         const decoded = Utils.verifyToken(access_token);
         if (!decoded) {
-            return Utils.makeResponse(res, 401, "Token expired, please log in again"); 
+            return Utils.makeResponse(res, 401, "Please log in"); 
         }
 
         const id = decoded.id;
