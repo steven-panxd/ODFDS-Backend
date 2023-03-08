@@ -187,7 +187,7 @@ paths:
           content:
             application/json:
               schema: 
-                $ref: '#/components/schemas/RestaurantProfileResponse'
+                $ref: '#/components/schemas/GetRestaurantProfileResponse'
         '401':
           description: Unauthorized
           content:
@@ -197,6 +197,62 @@ paths:
               example:
                 code: 401
                 data: Please log in
+    patch:
+      description: Update restaurant account profile info
+      tags:
+      - Restaurant
+      summary: Update restaurant accout profile
+      parameters:
+        - in: header
+          name: access_token
+          schema:
+            type: string
+            description: restaurant access token
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRestaurantProfileRequest'
+      responses:
+        '200':
+          description: Sign up succeed, restaurant account data inserted to the database
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Restaurant account created successfully
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid phone number:
+                  value: 
+                    code: 400
+                    data:
+                      field: phone
+                      value: ABC
+                      message: Invalid phone number
+                Duplicated phone number:
+                  value: 
+                    code: 400
+                    data:
+                      field: phone
+                      value: 4081234567
+                      message: Phone number is already taken, please try another phone number
+                Invalid latitude or longtitude:
+                  value:
+                    code: 400
+                    data:
+                      field: latitude
+                      value: ABC
+                      message: Invalid latitude
 components:
   schemas:
     GeneralResponse:
@@ -209,7 +265,7 @@ components:
           example: 200
         data:
           type: string
-          description: response data
+          description: response data or succeed message
           example: succeed
     GeneralInvalidResponse:
       title: General invalid parameter response body
@@ -235,7 +291,7 @@ components:
             field: email
             value: abc.com
             message: Invalid email address
-    RestaurantProfileResponse:
+    GetRestaurantProfileResponse:
       title: Restaurant profile response body
       type: object
       properties:
@@ -286,6 +342,42 @@ components:
               type: number
               description: restaurant longtitude
               example: -121.88420310757643
+    UpdateRestaurantProfileRequest:
+      title: Restaurant account profile update request body
+      type: object
+      properties:
+        phone:
+          type: string
+          description: phone number, unique
+          example: 4081234567
+        name:
+          type: string
+          description: restaurant name
+          example: My Restaurant
+        street:
+          type: string
+          description: restaurant street
+          example: 1 Washington Square
+        city:
+          type: string
+          description: restaurant city
+          example: San Jose
+        state:
+          type: string
+          description: restaurant state
+          example: California
+        zipCode:
+          type: string
+          description: restaurant zipCode
+          example: 95192
+        latitude:
+          type: number
+          description: restaurant latitude
+          example: 37.33482353097262
+        longtitude:
+          type: number
+          description: restaurant longtitude
+          example: -121.88420310757643
     RestaurantLoginRequest:
       title: Restaurant account log in request body
       type: object
