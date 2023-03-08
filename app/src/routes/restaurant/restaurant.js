@@ -72,12 +72,12 @@ router.post("/token", postRestaurantLoginValidator, function(req, res) {
 });
 
 // get restaurant profile
-router.get("/profile", Utils.loginRequired, function(req, res) {
+router.get("/profile", Utils.restaurantLoginRequired, function(req, res) {
   Utils.makeResponse(res, 200, req.user);
 });
 
 // update restaurant profile
-router.patch("/profile", Utils.loginRequired, patchRestaurantProfileValidator, async function(req, res) {
+router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileValidator, async function(req, res) {
   const phone = req.body.phone;
   const name = req.body.name;
   const street = req.body.street;

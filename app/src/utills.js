@@ -121,10 +121,14 @@ class Utils {
         return model
     }
 
+    static async restaurantLoginRequired(req, res, next) {
+        return Utils.loginRequired(req, res, next, "Restaurant");
+    }
+
     // login required for an interface
     // put it before validatiors
     // access req.user to get user info queried from database
-    static async loginRequired(req, res, next) {
+    static async loginRequired(req, res, next, accountType) {
         const access_token = req.headers.access_token;
         if (!access_token) {
             return Utils.makeResponse(res, 401, "Please log in");
@@ -135,16 +139,19 @@ class Utils {
             return Utils.makeResponse(res, 401, "Please log in"); 
         }
 
-        const id = decoded.id;
         const type = decoded.type;
-        console.log(type);
+        if (type != accountType) {
+            return Utils.makeResponse(res, 401, "Please log in as a " + accountType); 
+        }
+
+        const id = decoded.id;
         var user;
         if (type == "Restaurant") {
             user = await db.restaurant.findFirst({where: {id: id}});
         } else if (type == "Driver") {
             user = await db.driver.findUnique({ where: id });
         } else {
-            return Utils.makeResponse(res, 401, "Please log in"); 
+            return Utils.makeResponse(res, 401, "Invalid json web token"); 
         }
         user = Utils.exclude(user, ["passwordHash"]);  // exclude password hash from the db query set
         req.user = user;
