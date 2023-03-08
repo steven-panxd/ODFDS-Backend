@@ -8,7 +8,7 @@ var YAML = require('yamljs');
 var mongoose = require('mongoose');
 
 var indexRouter = require('./src/routes/index');
-var restaurantRouter = require("./src/routes/restaurant");
+var restaurantRouter = require("./src/routes/restaurant/restaurant");
 
 // connect to MongoDB
 mongoose.set("strictQuery", false);

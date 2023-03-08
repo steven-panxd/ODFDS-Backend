@@ -1,53 +1,27 @@
-var express = require('express');
-var router = express.Router();
 var { body, param, query } = require('express-validator');
-var emailValidate = require("../../mongoose/schema/emailValidation");
-
-var Utils = require('../utills');
+var emailValidate = require("../../../mongoose/schema/emailValidation");
 
 var { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient()
 
+var Utils = require('../../utills');
 
-// request an email verification code
-router.get(
-  '/emailCode', 
+const getRestaurantEmailCodeValidator = [
   query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (accountExist) {
-      return Promise.reject("Email is already taken, please try another email address");
+        return Promise.reject("Email is already taken, please try another email address");
     }
 
     const codeExist = await emailValidate.findOne({email: value, accountType: "Restaurant"});
     if (codeExist) {
-      return Promise.reject("Code is already sent, please try again after 5 mins");
+        return Promise.reject("Code is already sent, please try again after 5 mins");
     }
   }),
-  Utils.validate,
-  async function(req, res) {
+  Utils.validate
+]
 
-    const email = req.query.email;
-
-    const code = Utils.generateCode();
-    const sent = await Utils.sendEmail(email, "Your Restaurant Account Verification Code", "<h1>"+ code +"</h1>");
-    console.log(sent);
-    if (!sent) {
-      return Utils.makeResponse(res, 500, "Unable to sent email, please try again later");
-    }
-
-    await emailValidate.insertMany([{
-      email: email,
-      code: code,
-      accountType: "Restaurant",
-    }]);
-
-    Utils.makeResponse(res, 200, "Code sent to your email, it will expire in 5 mins");
-});
-
-
-// sign up
-router.post(
-  '/', 
+const postRestaurantSignUpValidator = [
   body('email').exists().isEmail().withMessage("Invalid email address").custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (accountExist) {
@@ -80,65 +54,45 @@ router.post(
 
     await codeExist.remove();
   }),
-  Utils.validate,
-  async function(req, res) {
-    const email = req.body.email;
-    const password = req.body.password;
-    const phone = req.body.phone;
-    const name = req.body.name;
-    const street = req.body.street;
-    const city = req.body.city;
-    const state = req.body.state;
-    const zipCode = req.body.zipCode;
-    const latitude = req.body.latitude;
-    const longtitude = req.body.longtitude;
+  Utils.validate
+]
 
-    await db.restaurant.create({
-      data: {
-        email: email,
-        passwordHash: Utils.generatePasswordHash(password),
-        phone: phone,
-        name: name,
-        street: street,
-        city: city,
-        state: state,
-        zipCode: zipCode,
-        latitude: latitude,
-        longtitude: longtitude
-      }
-    });
-    
-    Utils.makeResponse(res, 200, "Restaurant account created successfully");
-});
-
-
-// log in
-router.post(
-  "/token",
+const postRestaurantLoginValidator = [
   body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
-      return Promise.reject("Account does not exist");
+        return Promise.reject("Account does not exist");
     }
     req.account = accountExist;
-  }),
-  body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
+    }),
+    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.account.passwordHash)) {
-      return Promise.reject("Incorrect password");
+        return Promise.reject("Incorrect password");
     };
   }),
-  Utils.validate,
-  function(req, res) {
-    Utils.makeResponse(res, 200, Utils.generateRestaurantToken(req.account.id));
-});
+  Utils.validate
+]
 
-// get restaurant profile
-router.get(
-  "/profile", 
-  Utils.loginRequired, 
-  function(req, res) {
-    Utils.makeResponse(res, 200, req.user);
-  }
-);
+const patchRestaurantProfileValidator = [
+  body('phone').optional().isMobilePhone().withMessage("Invalid phone number").custom(async value => {
+    const accountExist = await db.restaurant.findFirst({where: {phone: value}});
+    if (accountExist) {
+      return Promise.reject("Phone number is already taken, please try another phone number");
+    }
+  }),
+  body('name').optional(),
+  body('street').optional(),
+  body('city').optional(),
+  body('state').optional(),
+  body('zipCode').optional(),
+  body('latitude').optional().isDecimal().withMessage('Invalid latitude'),
+  body('longtitude').optional().isDecimal().withMessage('Invalid longtitude'),
+  Utils.validate
+]
 
-module.exports = router;
+module.exports = {
+    getRestaurantEmailCodeValidator,
+    postRestaurantSignUpValidator,
+    postRestaurantLoginValidator,
+    patchRestaurantProfileValidator
+};
