@@ -1,3 +1,4 @@
+#!/bin/bash
 until nc -z -v -w30 ${MYSQL_DB_HOST} ${MYSQL_DB_DOCKER_PORT}
 do
   echo "Waiting a second until the database is receiving connections..."
