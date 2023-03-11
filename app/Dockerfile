@@ -6,7 +6,8 @@ COPY package.json .
 RUN npm install
 COPY . .
 RUN apt update && apt install -y netcat
-RUN chmod +x ./start.sh
+RUN cat start.sh | tr -d '\r' >> start2.sh
+RUN chmod +x ./start2.sh
 RUN npx prisma generate
 
-CMD ["./start.sh"]
+CMD ["./start2.sh"]
