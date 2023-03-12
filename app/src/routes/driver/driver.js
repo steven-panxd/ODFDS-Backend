@@ -49,7 +49,7 @@ router.post('/', postDriverSignUpValidator, async function(req, res) {
     }
   });
   
-  Utils.makeResponse(res, 200, "Restaurant account created successfully");
+  Utils.makeResponse(res, 200, "Driver account created successfully");
 });
 
 
