@@ -19,7 +19,6 @@ router.get('/emailCode', getRestaurantEmailCodeValidator, async function(req, re
 
   const code = Utils.generateCode();
   const sent = await Utils.sendEmail(email, "Your Restaurant Account Verification Code", "<h1>"+ code +"</h1>");
-  console.log(sent);
   if (!sent) {
     return Utils.makeResponse(res, 500, "Unable to sent email, please try again later");
   }
