@@ -40,8 +40,8 @@ const postRestaurantSignUpValidator = [
   body('city').exists().withMessage("Please select restaurant location"),
   body('state').exists().withMessage("Please select restaurant location"),
   body('zipCode').exists().withMessage("Please select restaurant location"),
-  body('latitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid latitude'),
-  body('longtitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid longtitude'),
+  // body('latitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid latitude'),
+  // body('longtitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid longtitude'),
   body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "Restaurant"});
     if (!codeExist) {
@@ -85,8 +85,8 @@ const patchRestaurantProfileValidator = [
   body('city').optional(),
   body('state').optional(),
   body('zipCode').optional(),
-  body('latitude').optional().isDecimal().withMessage('Invalid latitude'),
-  body('longtitude').optional().isDecimal().withMessage('Invalid longtitude'),
+  // body('latitude').optional().isDecimal().withMessage('Invalid latitude'),
+  // body('longtitude').optional().isDecimal().withMessage('Invalid longtitude'),
   Utils.validate
 ]
 
