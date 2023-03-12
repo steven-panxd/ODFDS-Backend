@@ -4,10 +4,13 @@ info:
   description: ODFDS BackEnd API
   version: 1.0.0
 servers:
+  - url: http://164.92.68.162:3000
+    description: Remote Development Server
   - url: http://127.0.0.1:3000
-    description: Development Server
+    description: Local Development Server
 tags:
 - name: Restaurant
+- name: Driver
 
 paths:
   /restaurant/emailCode:
