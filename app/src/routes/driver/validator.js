@@ -23,14 +23,14 @@ const getDriverEmailCodeValidator = [
 
 const postDriverSignUpValidator = [
   body('email').exists().isEmail().withMessage("Invalid email address").custom(async value => {
-    const accountExist = await db.restaurant.findFirst({where: {email: value}});
+    const accountExist = await db.driver.findFirst({where: {email: value}});
     if (accountExist) {
       return Promise.reject("Email is already taken, please try another email address");
     }
   }),
   body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
   body('phone').exists().isMobilePhone().withMessage("Invalid phone number").custom(async value => {
-    const accountExist = await db.restaurant.findFirst({where: {phone: value}});
+    const accountExist = await db.driver.findFirst({where: {phone: value}});
     if (accountExist) {
       return Promise.reject("Phone number is already taken, please try another phone number");
     }
@@ -75,7 +75,7 @@ const postDriverLoginValidator = [
 
 const patchDriverProfileValidator = [
   body('phone').optional().isMobilePhone().withMessage("Invalid phone number").custom(async value => {
-    const accountExist = await db.restaurant.findFirst({where: {phone: value}});
+    const accountExist = await db.driver.findFirst({where: {phone: value}});
     if (accountExist) {
       return Promise.reject("Phone number is already taken, please try another phone number");
     }
