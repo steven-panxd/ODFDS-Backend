@@ -9,11 +9,14 @@ var Utils = require('../../utills');
 var multer  = require('multer')
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
+        // automatically create ./uploads folder if not exist
         const path = "./uploads";
         fs.mkdirSync(path, { recursive: true });
         cb(null, path);
     },
     filename: function (req, file, cb) {
+        // reset uploaded file name to randomName.extionsion
+        // eg: 1678648394133-334412341.jpg
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const splittedFileName = file.originalname.split(".")
         const ext = splittedFileName[splittedFileName.length - 1];
@@ -26,6 +29,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     fileFilter: (req, file, cb) => {
+        // a file filter that only allow image files to be uploaded
         const splittedFileName = file.originalname.split(".")
         const ext = splittedFileName[splittedFileName.length - 1];
         if ((file.mimetype == "image/png" || file.mimetype == "image/jpg" || file.mimetype == "image/jpeg") && (ext == "jpg" || ext == "jpeg" || ext == "png")) {
@@ -37,7 +41,6 @@ const upload = multer({
         }
     }
  });
-
 const uploadSingleImage = upload.single('image')
 
 
