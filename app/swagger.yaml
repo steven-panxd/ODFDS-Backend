@@ -11,6 +11,7 @@ servers:
 tags:
 - name: Restaurant
 - name: Driver
+- name: Common
 
 paths:
   /restaurant/emailCode:
@@ -256,6 +257,288 @@ paths:
                 #       field: latitude
                 #       value: ABC
                 #       message: Invalid latitude
+  /driver/emailCode:
+    get:
+      description: Get an email verification code for creating a driver account
+      tags:
+      - Driver
+      summary: Get an email code
+      parameters:
+      - in: query
+        name: email
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Email code sent
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Code sent to your email, it will expire in 5 mins
+        '400':
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid email address format:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: abc.com
+                      message: Invalid email address
+                Email address already taken:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Email is already taken, please try another email address
+                Email code already sent:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Code is already sent, please try again after 5 mins
+        '500':
+          description: Can not send out email, server error
+  /driver/token:
+    post:
+      description: Log in an driver account and receive a json web token
+      tags:
+      - Driver
+      summary: Log in driver account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverLoginRequest'
+      responses:
+        '200':
+          description: Login succeed, receive an json web toke
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid account:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.com
+                      message: Invalid account
+                Account not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven@gmail.com
+                      message: Account does not exist
+                Invalid password:
+                  value:
+                    code: 400
+                    data:
+                      field: password
+                      value: abc123
+                      message: Invalid password
+                Incorrect password:
+                  value:
+                    code: 400
+                    data:
+                      field: password
+                      value: A1b2c3.
+                      message: Incorrect password
+  /driver:
+    post:
+      description: Sign up a new driver accout
+      tags:
+      - Driver
+      summary: Sign up a new driver accout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverSignUpRequest'
+      responses:
+        '200':
+          description: Sign up succeed, restaurant account data inserted to the database
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Restaurant account created successfully
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Email verification code expired:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is expired, please try to request a new one
+                Wrong Email verification code:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is wrong, please try again
+                Email address already taken:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Email is already taken, please try another email address
+  /driver/profile:
+    get:
+      description: Get a driver profile (basic information)
+      tags:
+      - Driver
+      summary: Get a driver profile
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: driver access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      responses:
+        '200':
+          description: return driver profile information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GetDriverProfileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+    patch:
+      description: Update driver account profile info
+      tags:
+      - Driver
+      summary: Update driver accout profile
+      parameters:
+        - in: header
+          name: access_token
+          schema:
+            type: string
+            description: restaurant access token
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDriverProfileRequest'
+      responses:
+        '200':
+          description: Sign up succeed, restaurant account data inserted to the database
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Restaurant account created successfully
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid phone number:
+                  value: 
+                    code: 400
+                    data:
+                      field: phone
+                      value: ABC
+                      message: Invalid phone number
+                Duplicated phone number:
+                  value: 
+                    code: 400
+                    data:
+                      field: phone
+                      value: 4081234567
+                      message: Phone number is already taken, please try another phone number
+  /common/upload/image:
+    post:
+      description: upload an image to the server
+      summary: upload image
+      tags:
+      - Common
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image uploaded successfully, return image url
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: "http://127.0.0.1:3000/common/file/1678647329659-683715332.jpg"
+        '400':
+          description: Image uploaded fail, return error message
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                No file uploaded:
+                  value: 
+                    code: 400
+                    data:
+                      field: image
+                      value: null
+                      message: No image file received
+                Invalid file extension:
+                  value: 
+                    code: 400
+                    data:
+                      field: image
+                      value: xxx.exe
+                      message: Only .png, .jpg and .jpeg format allowed!
 components:
   schemas:
     GeneralResponse:
@@ -337,6 +620,10 @@ components:
               type: string
               description: restaurant zipCode
               example: 95192
+            verification:
+              type: string
+              description: restaurant verification status
+              example: NOTVERIFIED
             # latitude:
             #   type: number
             #   description: restaurant latitude
@@ -452,3 +739,165 @@ components:
         - zipCode
         # - latitude
         # - longtitude
+    DriverLoginRequest:
+      title: Driver account log in request body
+      type: object
+      properties:
+        email:
+          type: string
+          description: email address
+          example: steven.panxd@gmail.com
+        password:
+          type: string
+          description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
+          example: A1b2c.
+    DriverSignUpRequest:
+      title: Driver account sign up request body
+      type: object
+      properties:
+        email:
+          type: string
+          description: email address, unique
+          example: steven.panxd@gmail.com
+        code:
+          type: string
+          description: email verification code
+          example: 123456
+        password:
+          type: string
+          description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
+          example: A1b2c.
+        phone:
+          type: string
+          description: phone number, unique
+          example: 4081234567
+        driverLicenseNumber:
+          type: string
+          description: driver license number
+          example: Y1234567
+        driverLicenseImage:
+          type: string
+          description: driver license image url
+          example: https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
+        firstName:
+          type: string
+          description: driver's first name
+          example: Steven
+        lastName:
+          type: string
+          description: driver's last name
+          example: Pan
+        middleName:
+          type: string
+          description: driver's middle name
+          example: null
+        bankAccountNumber:
+          type: string
+          description: driver's bank account number
+          example: 123456789
+        bankRoutingNumber:
+          type: string
+          description: driver's bank routing number
+          example: 123456789
+      required:
+        - email
+        - code
+        - password
+        - phone
+        - driverLicenseNumber
+        - driverLicenseImage
+        - firstName
+        - lastName
+        - bankAccountNumber
+        - bankRoutingNumber
+    GetDriverProfileResponse:
+      title: Driver profile response body
+      type: object
+      properties:
+        code:
+          type: number
+          description: HTTP status code
+          example: 200
+        data:
+          type: object
+          properties:
+            id:
+              type: number
+              description: driver account id
+              example: 1
+            email:
+              type: string
+              description: email address, unique
+              example: steven.panxd@gmail.com
+            phone:
+              type: string
+              description: phone number, unique
+              example: 4081234567
+            driverLicenseNumber:
+              type: string
+              description: driver license number
+              example: Y1234567
+            driverLicenseImage:
+              type: string
+              description: driver license image url
+              example: https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
+            firstName:
+              type: string
+              description: driver's first name
+              example: Steven
+            lastName:
+              type: string
+              description: driver's last name
+              example: Pan
+            middleName:
+              type: string
+              description: driver's middle name
+              example: null
+            bankAccountNumber:
+              type: string
+              description: driver's bank account number
+              example: 123456789
+            bankRoutingNumber:
+              type: string
+              description: driver's bank routing number
+              example: 123456789
+            verification:
+              type: string
+              description: restaurant verification status
+              example: NOTVERIFIED
+    UpdateDriverProfileRequest:
+      title: Driver account profile update request body
+      type: object
+      properties:
+        phone:
+          type: string
+          description: phone number, unique
+          example: 4081234567
+        driverLicenseNumber:
+          type: string
+          description: driver license number
+          example: Y1234567
+        driverLicenseImage:
+          type: string
+          description: driver license image url
+          example: https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
+        firstName:
+          type: string
+          description: driver's first name
+          example: Steven
+        lastName:
+          type: string
+          description: driver's last name
+          example: Pan
+        middleName:
+          type: string
+          description: driver's middle name
+          example: null
+        bankAccountNumber:
+          type: string
+          description: driver's bank account number
+          example: 123456789
+        bankRoutingNumber:
+          type: string
+          description: driver's bank routing number
+          example: 123456789

@@ -10,6 +10,7 @@ var mongoose = require('mongoose');
 var indexRouter = require('./src/routes/index');
 var restaurantRouter = require("./src/routes/restaurant/restaurant");
 var driverRouter = require('./src/routes/driver/driver');
+var commonRouter = require('./src/routes/common/common');
 
 // connect to MongoDB
 mongoose.set("strictQuery", false);
@@ -49,5 +50,6 @@ app.use(swaggerRouter);
 app.use('/', indexRouter);
 app.use('/restaurant', restaurantRouter);
 app.use('/driver', driverRouter);
+app.use('/common', commonRouter)
 
 module.exports = app;

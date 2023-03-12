@@ -63,10 +63,10 @@ const postRestaurantLoginValidator = [
     if (!accountExist) {
         return Promise.reject("Account does not exist");
     }
-    req.account = accountExist;
+    req.user = accountExist;
     }),
     body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
-    if(!Utils.checkPasswordHash(value, req.account.passwordHash)) {
+    if(!Utils.checkPasswordHash(value, req.user.passwordHash)) {
         return Promise.reject("Incorrect password");
     };
   }),
