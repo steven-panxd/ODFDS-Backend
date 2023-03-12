@@ -1,9 +1,17 @@
+var fs = require('fs');
 var express = require('express');
 var router = express.Router();
+
+var uploadedImage = require('../../../mongoose/schema/uploadedImage'); 
+var Utils = require('../../utills');
+
+// set up multer
 var multer  = require('multer')
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads')
+        const path = "./uploads";
+        fs.mkdirSync(path, { recursive: true });
+        cb(null, path);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -13,6 +21,8 @@ const storage = multer.diskStorage({
         cb(null, path);
     },
 });
+
+// setup multer uploader
 const upload = multer({ 
     storage: storage,
     fileFilter: (req, file, cb) => {
@@ -27,9 +37,6 @@ const upload = multer({
         }
     }
  });
-
-var uploadedImage = require('../../../mongoose/schema/uploadedImage'); 
-var Utils = require('../../utills');
 
 const uploadSingleImage = upload.single('image')
 
