@@ -311,10 +311,10 @@ paths:
           description: Can not send out email, server error
   /restaurant/reset/password:
     patch:
-      description: reset restaurant accout's password
+      description: Reset restaurant account password
       tags:
       - Restaurant
-      summary: reset driver account password
+      summary: Reset restaurant account password
       requestBody:
         content:
           application/json:
@@ -648,10 +648,10 @@ paths:
           description: Can not send out email, server error
   /driver/reset/password:
     patch:
-      description: reset driver accout's password
+      description: Reset driver account password
       tags:
       - Driver
-      summary: reset driver account password
+      summary: Reset driver account password
       requestBody:
         content:
           application/json:
