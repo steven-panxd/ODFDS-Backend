@@ -125,6 +125,10 @@ class Utils {
         return Utils.loginRequired(req, res, next, "Restaurant");
     }
 
+    static async driverLoginRequired(req, res, next) {
+        return Utils.loginRequired(req, res, next, "Driver");
+    }
+
     // login required for an interface
     // put it before validatiors
     // access req.user to get user info queried from database
@@ -147,9 +151,9 @@ class Utils {
         const id = decoded.id;
         var user;
         if (type == "Restaurant") {
-            user = await db.restaurant.findFirst({where: {id: id}});
+            user = await db.restaurant.findUnique({where: {id: id}});
         } else if (type == "Driver") {
-            user = await db.driver.findUnique({ where: id });
+            user = await db.driver.findUnique({where: {id:id}});
         } else {
             return Utils.makeResponse(res, 401, "Invalid json web token"); 
         }

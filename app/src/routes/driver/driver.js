@@ -1,6 +1,10 @@
 var express = require('express');
 var router = express.Router();
-var { getDriverEmailCodeValidator } = require("./validator");
+var { getDriverEmailCodeValidator,
+      postDriverSignUpValidator,
+      postDriverLoginValidator,
+      patchDriverProfileValidator
+} = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
 var Utils = require('../../utills');
@@ -25,6 +29,59 @@ router.get('/emailCode', getDriverEmailCodeValidator, async function(req, res) {
     }]);
 
     Utils.makeResponse(res, 200, "Code sent to your email, it will expire in 5 mins");
+});
+
+// sign up driver account
+router.post('/', postDriverSignUpValidator, async function(req, res) {
+
+  await db.driver.create({
+    data: {
+        email: req.body.email,
+        passwordHash: Utils.generatePasswordHash(req.body.password),
+        phone: req.body.phone,
+        driverLicenseNumber: req.body.driverLicenseNumber,
+        driverLicenseImage: req.body.driverLicenseImage,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        middleName: req.body.middleName,
+        bankAccountNumber: req.body.bankAccountNumber,
+        bankRoutingNumber: req.body.bankRoutingNumber
+    }
+  });
+  
+  Utils.makeResponse(res, 200, "Restaurant account created successfully");
+});
+
+
+// log in driver account
+router.post("/token", postDriverLoginValidator, function(req, res) {
+  Utils.makeResponse(res, 200, Utils.generateDriverToken(req.user.id));
+});
+
+// get driver profile
+router.get("/profile", Utils.driverLoginRequired, function(req, res) {
+  Utils.makeResponse(res, 200, req.user);
+});
+
+// update driver profile
+router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator, async function(req, res) {
+  await db.driver.update({
+    where: {
+      id: req.user.id
+    },
+    data: {
+      phone: req.body.phone,
+      driverLicenseNumber: req.body.driverLicenseNumber,
+      driverLicenseImage: req.body.driverLicenseImage,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      middleName: req.body.middleName,
+      bankAccountNumber: req.body.bankAccountNumber,
+      bankRoutingNumber: req.body.bankRoutingNumber
+    }
+  });
+
+  Utils.makeResponse(res, 200, "Profile updated");
 });
 
 module.exports = router;

@@ -66,8 +66,8 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
 
 
 // log in restaurant account
-router.post("/token", postRestaurantLoginValidator, function(req, res) {
-  Utils.makeResponse(res, 200, Utils.generateRestaurantToken(req.account.id));
+router.post("/token", postRestaurantLoginValidator, async function(req, res) {
+  Utils.makeResponse(res, 200, Utils.generateRestaurantToken(req.user.id));
 });
 
 // get restaurant profile
