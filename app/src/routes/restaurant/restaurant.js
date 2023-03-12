@@ -43,8 +43,8 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
   const city = req.body.city;
   const state = req.body.state;
   const zipCode = req.body.zipCode;
-  const latitude = req.body.latitude;
-  const longtitude = req.body.longtitude;
+  // const latitude = req.body.latitude;
+  // const longtitude = req.body.longtitude;
 
   await db.restaurant.create({
     data: {
@@ -56,8 +56,8 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
       city: city,
       state: state,
       zipCode: zipCode,
-      latitude: latitude,
-      longtitude: longtitude
+      // latitude: latitude,
+      // longtitude: longtitude
     }
   });
   
@@ -83,8 +83,8 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
   const city = req.body.city;
   const state = req.body.state;
   const zipCode = req.body.zipCode;
-  const latitude = req.body.latitude;
-  const longtitude = req.body.longtitude;
+  // const latitude = req.body.latitude;
+  // const longtitude = req.body.longtitude;
 
   await db.restaurant.update({
     where: {
@@ -97,8 +97,8 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
       city: city,
       state: state,
       zipCode: zipCode,
-      latitude: latitude,
-      longtitude: longtitude
+      // latitude: latitude,
+      // longtitude: longtitude
     }
   });
 

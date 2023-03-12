@@ -246,13 +246,13 @@ paths:
                       field: phone
                       value: 4081234567
                       message: Phone number is already taken, please try another phone number
-                Invalid latitude or longtitude:
-                  value:
-                    code: 400
-                    data:
-                      field: latitude
-                      value: ABC
-                      message: Invalid latitude
+                # Invalid latitude or longtitude:
+                #   value:
+                #     code: 400
+                #     data:
+                #       field: latitude
+                #       value: ABC
+                #       message: Invalid latitude
 components:
   schemas:
     GeneralResponse:
@@ -334,14 +334,14 @@ components:
               type: string
               description: restaurant zipCode
               example: 95192
-            latitude:
-              type: number
-              description: restaurant latitude
-              example: 37.33482353097262
-            longtitude:
-              type: number
-              description: restaurant longtitude
-              example: -121.88420310757643
+            # latitude:
+            #   type: number
+            #   description: restaurant latitude
+            #   example: 37.33482353097262
+            # longtitude:
+            #   type: number
+            #   description: restaurant longtitude
+            #   example: -121.88420310757643
     UpdateRestaurantProfileRequest:
       title: Restaurant account profile update request body
       type: object
@@ -370,14 +370,14 @@ components:
           type: string
           description: restaurant zipCode
           example: 95192
-        latitude:
-          type: number
-          description: restaurant latitude
-          example: 37.33482353097262
-        longtitude:
-          type: number
-          description: restaurant longtitude
-          example: -121.88420310757643
+        # latitude:
+        #   type: number
+        #   description: restaurant latitude
+        #   example: 37.33482353097262
+        # longtitude:
+        #   type: number
+        #   description: restaurant longtitude
+        #   example: -121.88420310757643
     RestaurantLoginRequest:
       title: Restaurant account log in request body
       type: object
@@ -430,14 +430,14 @@ components:
           type: string
           description: restaurant zipCode
           example: 95192
-        latitude:
-          type: number
-          description: restaurant latitude
-          example: 37.33482353097262
-        longtitude:
-          type: number
-          description: restaurant longtitude
-          example: -121.88420310757643
+        # latitude:
+        #   type: number
+        #   description: restaurant latitude
+        #   example: 37.33482353097262
+        # longtitude:
+        #   type: number
+        #   description: restaurant longtitude
+        #   example: -121.88420310757643
       required:
         - email
         - code
@@ -447,5 +447,5 @@ components:
         - street
         - state
         - zipCode
-        - latitude
-        - longtitude
+        # - latitude
+        # - longtitude
