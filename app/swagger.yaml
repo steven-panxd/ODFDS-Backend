@@ -257,6 +257,107 @@ paths:
                 #       field: latitude
                 #       value: ABC
                 #       message: Invalid latitude
+  /restaurant/reset/emailCode:
+    get:
+      description: Get an email verification code for reset password of a restaurant account
+      tags:
+      - Restaurant
+      summary: Get an email code for reset password for a restaurant account
+      parameters:
+      - in: query
+        name: email
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Email code sent
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Code sent to your email, it will expire in 5 mins
+        '400':
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid email address format:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: abc.com
+                      message: Invalid email address
+                Restaurant account does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Restaurant account does not exist
+                Email code already sent:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Code is already sent, please try again after 5 mins
+        '500':
+          description: Can not send out email, server error
+  /restaurant/reset/password:
+    patch:
+      description: reset restaurant accout's password
+      tags:
+      - Restaurant
+      summary: reset driver account password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reseted
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Succeed
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Email verification code expired:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is expired, please try to request a new one
+                Wrong Email verification code:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is wrong, please try again
+                Restaurant account does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Restaurant account does not exist
   /driver/emailCode:
     get:
       description: Get an email verification code for creating a driver account
@@ -493,6 +594,107 @@ paths:
                       field: phone
                       value: 4081234567
                       message: Phone number is already taken, please try another phone number
+  /driver/reset/emailCode:
+    get:
+      description: Get an email verification code for reset password of a driver account
+      tags:
+      - Driver
+      summary: Get an email code for reset password for a driver account
+      parameters:
+      - in: query
+        name: email
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Email code sent
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Code sent to your email, it will expire in 5 mins
+        '400':
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid email address format:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: abc.com
+                      message: Invalid email address
+                Driver account does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Driver account does not exist
+                Email code already sent:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Code is already sent, please try again after 5 mins
+        '500':
+          description: Can not send out email, server error
+  /driver/reset/password:
+    patch:
+      description: reset driver accout's password
+      tags:
+      - Driver
+      summary: reset driver account password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reseted
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Succeed
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Email verification code expired:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is expired, please try to request a new one
+                Wrong Email verification code:
+                  value: 
+                    code: 400
+                    data:
+                      field: code
+                      value: 123456
+                      message: Email verification code is wrong, please try again
+                Driver account does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: steven.panxd@gmail.com
+                      message: Driver account does not exist
   /common/upload/image:
     post:
       description: upload an image to the server
@@ -539,6 +741,8 @@ paths:
                       field: image
                       value: xxx.exe
                       message: Only .png, .jpg and .jpeg format allowed!
+
+
 components:
   schemas:
     GeneralResponse:
@@ -901,3 +1105,23 @@ components:
           type: string
           description: driver's bank routing number
           example: 123456789
+    ResetPasswordRequest:
+      title: Restaurant/Driver account reset password request body
+      type: object
+      properties:
+        email:
+          type: string
+          description: email address, unique
+          example: steven.panxd@gmail.com
+        code:
+          type: string
+          description: email verification code
+          example: 123456
+        password:
+          type: string
+          description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
+          example: A1b2c.
+      required:
+      - email
+      - code
+      - password

@@ -90,9 +90,50 @@ const patchDriverProfileValidator = [
   Utils.validate
 ]
 
+const getDriverResetPasswordEmailCodeValidator = [
+  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").custom(async value => {
+    const accountExist = await db.driver.findFirst({where: {email: value}});
+    if (!accountExist) {
+        return Promise.reject("Driver account does not exist");
+    }
+
+    const codeExist = await emailValidate.findOne({email: value, accountType: "DriverReset"});
+    if (codeExist) {
+        return Promise.reject("Code is already sent, please try again after 5 mins");
+    }
+  }),
+  Utils.validate
+]
+
+const postDriverResetPasswordValidator = [
+  body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
+    const accountExist = await db.driver.findFirst({where: {email: value}});
+    if (!accountExist) {
+      return Promise.reject("Driver account does not exist");
+    }
+    req.user = accountExist;
+  }),
+  body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
+    const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "DriverReset"});
+    if (!codeExist) {
+      return Promise.reject("Email verification code is expired, please try to request a new one");
+    }
+
+    if (codeExist.code != value) {
+      return Promise.reject("Email verification code is wrong, please try again");
+    }
+
+    await codeExist.remove();
+  }),
+  Utils.validate
+]
+
 module.exports = {
     getDriverEmailCodeValidator,
     postDriverSignUpValidator,
     postDriverLoginValidator,
-    patchDriverProfileValidator
+    patchDriverProfileValidator,
+    getDriverResetPasswordEmailCodeValidator,
+    postDriverResetPasswordValidator
 }
