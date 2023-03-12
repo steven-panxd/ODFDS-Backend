@@ -3,7 +3,9 @@ var router = express.Router();
 var { getRestaurantEmailCodeValidator, 
       postRestaurantSignUpValidator, 
       postRestaurantLoginValidator,
-      patchRestaurantProfileValidator
+      patchRestaurantProfileValidator,
+      getRestaurantResetPasswordEmailCodeValidator,
+      postRestaurantResetPasswordValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
@@ -103,6 +105,39 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
   });
 
   Utils.makeResponse(res, 200, "Profile updated");
+});
+
+// get restaurant account reset password email verification code
+router.get('/reset/emailCode', getRestaurantResetPasswordEmailCodeValidator, async function(req, res) {
+  const email = req.query.email;
+
+  const code = Utils.generateCode();
+  const sent = await Utils.sendEmail(email, "Your Restaurant Account Reset Password Verification Code", "<h1>"+ code +"</h1>");
+  if (!sent) {
+      return Utils.makeResponse(res, 500, "Unable to sent email, please try again later");
+  }
+
+  await emailValidate.insertMany([{
+      email: email,
+      code: code,
+      accountType: "RestaurantReset",
+  }]);
+
+  Utils.makeResponse(res, 200, "Code sent to your email, it will expire in 5 mins");
+});
+
+// reset password by email verification code
+router.patch('/reset/password', postRestaurantResetPasswordValidator, async function(req, res) {
+  await db.restaurant.update({
+    where: {
+      id: req.user.id
+    },
+    data: {
+      passwordHash: Utils.generatePasswordHash(req.body.password)
+    }
+  });
+  
+  Utils.makeResponse(res, 200, "Succeed");
 });
 
 module.exports = router;

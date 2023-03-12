@@ -3,7 +3,9 @@ var router = express.Router();
 var { getDriverEmailCodeValidator,
       postDriverSignUpValidator,
       postDriverLoginValidator,
-      patchDriverProfileValidator
+      patchDriverProfileValidator,
+      getDriverResetPasswordEmailCodeValidator,
+      postDriverResetPasswordValidator
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
@@ -82,6 +84,39 @@ router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator,
   });
 
   Utils.makeResponse(res, 200, "Profile updated");
+});
+
+// get driver account reset password email verification code
+router.get('/reset/emailCode', getDriverResetPasswordEmailCodeValidator, async function(req, res) {
+  const email = req.query.email;
+
+  const code = Utils.generateCode();
+  const sent = await Utils.sendEmail(email, "Your Driver Account Reset Password Verification Code", "<h1>"+ code +"</h1>");
+  if (!sent) {
+      return Utils.makeResponse(res, 500, "Unable to sent email, please try again later");
+  }
+
+  await emailValidate.insertMany([{
+      email: email,
+      code: code,
+      accountType: "DriverReset",
+  }]);
+
+  Utils.makeResponse(res, 200, "Code sent to your email, it will expire in 5 mins");
+});
+
+// reset password by email verification code
+router.patch('/reset/password', postDriverResetPasswordValidator, async function(req, res) {
+  await db.driver.update({
+    where: {
+      id: req.user.id
+    },
+    data: {
+      passwordHash: Utils.generatePasswordHash(req.body.password)
+    }
+  });
+  
+  Utils.makeResponse(res, 200, "Succeed");
 });
 
 module.exports = router;
