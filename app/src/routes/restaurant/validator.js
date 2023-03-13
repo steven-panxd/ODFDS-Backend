@@ -129,11 +129,28 @@ const postRestaurantResetPasswordValidator = [
   Utils.validate
 ]
 
+const deleteRestaurantAccountValidator = [
+  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").custom(async function(value, { req }) {
+      const account = await db.restaurant.findUnique({
+        where: {
+          email: value
+        }
+      });
+
+      if (!account) {
+        return Promise.reject("Restaurant account does not exist");
+      }
+      req.user = account;
+  }),
+  Utils.validate
+]
+
 module.exports = {
     getRestaurantEmailCodeValidator,
     postRestaurantSignUpValidator,
     postRestaurantLoginValidator,
     patchRestaurantProfileValidator,
     getRestaurantResetPasswordEmailCodeValidator,
-    postRestaurantResetPasswordValidator
+    postRestaurantResetPasswordValidator,
+    deleteRestaurantAccountValidator
 };

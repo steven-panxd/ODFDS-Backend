@@ -5,7 +5,8 @@ var { getRestaurantEmailCodeValidator,
       postRestaurantLoginValidator,
       patchRestaurantProfileValidator,
       getRestaurantResetPasswordEmailCodeValidator,
-      postRestaurantResetPasswordValidator
+      postRestaurantResetPasswordValidator,
+      deleteRestaurantAccountValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
@@ -66,6 +67,16 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
   Utils.makeResponse(res, 200, "Restaurant account created successfully");
 });
 
+// delete restaurant account (dev use only)
+router.delete('/', deleteRestaurantAccountValidator, async function(req, res) {
+  await db.restaurant.delete({
+    where: {
+      id: req.user.id
+    }
+  });
+  
+  Utils.makeResponse(res, 200, "Succeed");
+});
 
 // log in restaurant account
 router.post("/token", postRestaurantLoginValidator, async function(req, res) {

@@ -5,7 +5,8 @@ var { getDriverEmailCodeValidator,
       postDriverLoginValidator,
       patchDriverProfileValidator,
       getDriverResetPasswordEmailCodeValidator,
-      postDriverResetPasswordValidator
+      postDriverResetPasswordValidator,
+      deleteDriverAccountValidator
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
@@ -52,6 +53,17 @@ router.post('/', postDriverSignUpValidator, async function(req, res) {
   });
   
   Utils.makeResponse(res, 200, "Driver account created successfully");
+});
+
+// delete driver account (dev use only)
+router.delete('/', deleteDriverAccountValidator, async function(req, res) {
+  await db.driver.delete({
+    where: {
+      id: req.user.id
+    }
+  });
+  
+  Utils.makeResponse(res, 200, "Succeed");
 });
 
 

@@ -171,6 +171,41 @@ paths:
                       field: email
                       value: steven.panxd@gmail.com
                       message: Email is already taken, please try another email address
+    delete:
+      description: Delete a restaurant account (dev use)
+      tags:
+      - Restaurant
+      summary: Delete a restaurant account (dev use)
+      parameters:
+      - in: query
+        name: email
+        schema:
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Restaurant account deleted
+        '400':
+          description: Fail
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid email address format:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: stevenxpan@yahoo.com
+                      message: Restaurant account does not exist
   /restaurant/profile:
     get:
       description: Get a restaurant profile (basic information)
@@ -515,6 +550,41 @@ paths:
                       field: email
                       value: steven.panxd@gmail.com
                       message: Email is already taken, please try another email address
+    delete:
+      description: Delete a driver account (dev use)
+      tags:
+      - Driver
+      summary: Delete a driver account (dev use)
+      parameters:
+      - in: query
+        name: email
+        schema:
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Driver account deleted
+        '400':
+          description: Fail
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid email address format:
+                  value:
+                    code: 400
+                    data:
+                      field: email
+                      value: stevenxpan@yahoo.com
+                      message: Driver account does not exist
   /driver/profile:
     get:
       description: Get a driver profile (basic information)
@@ -741,7 +811,6 @@ paths:
                       field: image
                       value: xxx.exe
                       message: Only .png, .jpg and .jpeg format allowed!
-
 
 components:
   schemas:
