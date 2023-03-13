@@ -129,11 +129,28 @@ const postDriverResetPasswordValidator = [
   Utils.validate
 ]
 
+const deleteDriverAccountValidator = [
+  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").custom(async function(value, { req }) {
+      const account = await db.driver.findUnique({
+        where: {
+          email: value
+        }
+      });
+
+      if (!account) {
+        return Promise.reject("Driver account does not exist");
+      }
+      req.user = account;
+  }),
+  Utils.validate
+]
+
 module.exports = {
     getDriverEmailCodeValidator,
     postDriverSignUpValidator,
     postDriverLoginValidator,
     patchDriverProfileValidator,
     getDriverResetPasswordEmailCodeValidator,
-    postDriverResetPasswordValidator
+    postDriverResetPasswordValidator,
+    deleteDriverAccountValidator
 }
