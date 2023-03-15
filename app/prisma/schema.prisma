@@ -39,7 +39,7 @@ enum OrderStatus {
 model Driver {
   id Int @id @default(autoincrement())
   email String @unique
-  phone String @unique
+  phone String
   passwordHash String
   driverLicenseNumber String
   driverLicenseImage String
@@ -57,7 +57,7 @@ model Driver {
 model Restaurant {
   id Int @id @default(autoincrement())
   email String @unique
-  phone String @unique
+  phone String
   passwordHash String
   name String
   verification Verification @default(NOTVERIFIED)
