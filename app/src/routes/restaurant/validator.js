@@ -29,12 +29,7 @@ const postRestaurantSignUpValidator = [
     }
   }),
   body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
-  body('phone').exists().isMobilePhone().withMessage("Invalid phone number").custom(async value => {
-    const accountExist = await db.restaurant.findFirst({where: {phone: value}});
-    if (accountExist) {
-      return Promise.reject("Phone number is already taken, please try another phone number");
-    }
-  }),
+  body('phone').exists().isMobilePhone().withMessage("Invalid phone number"),
   body('name').exists().withMessage("Please input restaurant name"),
   body('street').exists().withMessage("Please select restaurant location"),
   body('city').exists().withMessage("Please select restaurant location"),
@@ -74,12 +69,7 @@ const postRestaurantLoginValidator = [
 ]
 
 const patchRestaurantProfileValidator = [
-  body('phone').optional().isMobilePhone().withMessage("Invalid phone number").custom(async value => {
-    const accountExist = await db.restaurant.findFirst({where: {phone: value}});
-    if (accountExist) {
-      return Promise.reject("Phone number is already taken, please try another phone number");
-    }
-  }),
+  body('phone').optional().isMobilePhone().withMessage("Invalid phone number"),
   body('name').optional(),
   body('street').optional(),
   body('city').optional(),
