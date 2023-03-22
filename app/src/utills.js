@@ -157,6 +157,11 @@ class Utils {
         } else {
             return Utils.makeResponse(res, 401, "Invalid json web token"); 
         }
+
+        if (!user) {
+            return Utils.makeResponse(res, 401, "Invalid json web token"); 
+        }
+
         user = Utils.exclude(user, ["passwordHash"]);  // exclude password hash from the db query set
         req.user = user;
         next();
