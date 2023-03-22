@@ -135,6 +135,11 @@ const deleteRestaurantAccountValidator = [
   Utils.validate
 ]
 
+const getRestaurantOrdersValidator = [
+  query('page').optional().default(1).isInt().withMessage('Invalid page number').toInt(),
+  query('pageSize').optional().default(10).isInt().withMessage('Invalid page size').toInt()
+]
+
 module.exports = {
     getRestaurantEmailCodeValidator,
     postRestaurantSignUpValidator,
@@ -142,5 +147,6 @@ module.exports = {
     patchRestaurantProfileValidator,
     getRestaurantResetPasswordEmailCodeValidator,
     postRestaurantResetPasswordValidator,
-    deleteRestaurantAccountValidator
+    deleteRestaurantAccountValidator,
+    getRestaurantOrdersValidator
 };

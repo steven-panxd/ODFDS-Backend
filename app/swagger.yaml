@@ -393,6 +393,71 @@ paths:
                       field: email
                       value: steven.panxd@gmail.com
                       message: Restaurant account does not exist
+  /restaurant/orders:
+    get:
+      description: Get restaurant history orders
+      tags:
+      - Restaurant
+      summary: Get restaurant history orders
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: restaurant access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      - in: query
+        name: pageSize
+        description: number of items per page
+        schema: 
+          type: number
+        required: true
+        example: 10
+      - in: query
+        name: page
+        description: current page number
+        required: true
+        schema:
+          type: number
+        example: 1
+      responses:
+        '200':
+          description: return restaurant history orders information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GetOrdersResponse'
+        '400':
+          description: invalid parameters
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                  Invalid page number:
+                    value:
+                      code: 400
+                      data:
+                        field: page
+                        value: abc
+                        message: Invalid page number
+                  Invalid page size:
+                    value:
+                      code: 400
+                      data:
+                        field: pageSize
+                        value: abc
+                        message: Invalid page size
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
   /driver/emailCode:
     get:
       description: Get an email verification code for creating a driver account
@@ -765,6 +830,71 @@ paths:
                       field: email
                       value: steven.panxd@gmail.com
                       message: Driver account does not exist
+  /driver/orders:
+    get:
+      description: Get driver history orders
+      tags:
+      - Driver
+      summary: Get driver history orders
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: driver access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      - in: query
+        name: pageSize
+        description: number of items per page
+        schema: 
+          type: number
+        required: true
+        example: 10
+      - in: query
+        name: page
+        description: current page number
+        required: true
+        schema:
+          type: number
+        example: 1
+      responses:
+        '200':
+          description: return driver history orders information
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GetOrdersResponse'
+        '400':
+          description: invalid parameters
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                  Invalid page number:
+                    value:
+                      code: 400
+                      data:
+                        field: page
+                        value: abc
+                        message: Invalid page number
+                  Invalid page size:
+                    value:
+                      code: 400
+                      data:
+                        field: pageSize
+                        value: abc
+                        message: Invalid page size
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
   /common/upload/image:
     post:
       description: upload an image to the server
@@ -1194,3 +1324,82 @@ components:
       - email
       - code
       - password
+    GetOrdersResponse:
+      title: Restaurant history orders response body
+      type: object
+      properties:
+        code:
+          type: number
+          description: HTTP status code
+          example: 200
+        data:
+          type: object
+          properties:
+            data:
+              type: array
+              description: history orders data
+              items:
+                $ref: '#/components/schemas/OrderSummary'
+            totalPage:
+              type: number
+              description: total page count
+              example: 1
+            pageSize:
+              type: number
+              description: current page size
+              example: 10
+            page:
+              type: number
+              description: current page number
+    OrderSummary:
+      description: history orders item object
+      type: object
+      properties:
+        id: 
+          type: integer
+          example: 1
+        estimatedDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        estimatedDeliveryCost:
+          type: string
+          example: "50.25"
+        actualDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        actualDeliveryCost:
+          type: string
+          example: "50.25"
+        status:
+          type: string
+          example: DELIVERED
+        customerStreet: 
+          type: string
+          example: "One Apple Park Way"
+        customerCity: 
+          type: string
+          example: "Cupertino"
+        customerState:
+          type: string
+          example: "CA"
+        customerZipCode:
+          type: string
+          example: "95014"
+        customerName:
+          type: string
+          example: "Tim Cook"
+        customerEmail:
+          type: string
+          example: "xd.cs157c@gmail.com"
+        customerPhone:
+          type: string
+          example: "6691234567"
+        restaurantId:
+          type: integer
+          example: 1
+        driverId:
+          type: integer
+          example: 1
+        transactionId:
+          type: integer
+          example: 1
