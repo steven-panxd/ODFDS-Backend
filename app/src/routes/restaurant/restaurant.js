@@ -169,19 +169,37 @@ router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequire
   const totalPage = Math.ceil(allCount / pageSize);
 
   const skip = (page - 1) * pageSize; // skip some data and get the data from current page
-  const data = await db.deliveryOrder.findMany({
+  const rawData = await db.deliveryOrder.findMany({
     orderBy: {
       id: 'desc'
     },
     where: {
       restaurantId: req.user.id
     },
+    include: {
+      driver: {
+        select: {
+          id: true,
+          lastName: true,
+          firstName: true,
+          middleName: true,
+          phone: true,
+          email: true
+        }
+      }
+    },
     skip: skip,
     take: pageSize,
   });
 
+  // remove foreign key fields
+  let cleanData = [];
+  rawData.forEach((model) => {
+    cleanData.push(Utils.exclude(model, ["restaurantId", "driverId", "transactionId"]));
+  });
+
   Utils.makeResponse(res, 200, {
-    data: data,
+    data: cleanData,
     pageSize: pageSize,
     totalPage: totalPage,
     page: page,
