@@ -6,7 +6,8 @@ var { getRestaurantEmailCodeValidator,
       patchRestaurantProfileValidator,
       getRestaurantResetPasswordEmailCodeValidator,
       postRestaurantResetPasswordValidator,
-      deleteRestaurantAccountValidator
+      deleteRestaurantAccountValidator,
+      getRestaurantOrdersValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
@@ -150,5 +151,42 @@ router.patch('/reset/password', postRestaurantResetPasswordValidator, async func
   
   Utils.makeResponse(res, 200, "Succeed");
 });
+
+
+router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequired, async function(req, res) {
+  const page = req.query.page;
+  const pageSize = req.query.pageSize;
+
+  // calculate total page number
+  const allCount = await db.deliveryOrder.count({
+    orderBy: {
+      id: 'desc'
+    },
+    where: {
+      restaurantId: req.user.id
+    }
+  });
+  const totalPage = Math.ceil(allCount / pageSize);
+
+  const skip = (page - 1) * pageSize; // skip some data and get the data from current page
+  const data = await db.deliveryOrder.findMany({
+    orderBy: {
+      id: 'desc'
+    },
+    where: {
+      restaurantId: req.user.id
+    },
+    skip: skip,
+    take: pageSize,
+  });
+
+  Utils.makeResponse(res, 200, {
+    data: data,
+    pageSize: pageSize,
+    totalPage: totalPage,
+    page: page,
+  });
+});
+
 
 module.exports = router;

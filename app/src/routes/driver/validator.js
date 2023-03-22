@@ -135,6 +135,11 @@ const deleteDriverAccountValidator = [
   Utils.validate
 ]
 
+const getDriverOrdersValidator = [
+  query('page').optional().default(1).isInt().withMessage('Invalid page number').toInt(),
+  query('pageSize').optional().default(10).isInt().withMessage('Invalid page size').toInt()
+];
+
 module.exports = {
     getDriverEmailCodeValidator,
     postDriverSignUpValidator,
@@ -142,5 +147,6 @@ module.exports = {
     patchDriverProfileValidator,
     getDriverResetPasswordEmailCodeValidator,
     postDriverResetPasswordValidator,
-    deleteDriverAccountValidator
+    deleteDriverAccountValidator,
+    getDriverOrdersValidator
 }

@@ -30,7 +30,6 @@ enum PaymentStatus {
 }
 
 enum OrderStatus {
-  CREATED
   ASSIGNED
   PICKEDUP
   DELIVERED
@@ -105,8 +104,8 @@ model deliveryOrder {
   estimatedDeliveryTime DateTime
   estimatedDeliveryCost Decimal @db.Decimal(15, 2)
   actualDeliveryTime DateTime?
-  actualDeliveryCost Decimal @db.Decimal(15, 2)
-  status OrderStatus @default(CREATED)
+  actualDeliveryCost Decimal? @db.Decimal(15, 2)
+  status OrderStatus @default(ASSIGNED)
   customerStreet String
   customerCity String
   customerState String
