@@ -427,7 +427,7 @@ paths:
           content:
             application/json:
               schema: 
-                $ref: '#/components/schemas/GetOrdersResponse'
+                $ref: '#/components/schemas/GetRestaurantOrdersResponse'
         '400':
           description: invalid parameters
           content: 
@@ -864,7 +864,7 @@ paths:
           content:
             application/json:
               schema: 
-                $ref: '#/components/schemas/GetOrdersResponse'
+                $ref: '#/components/schemas/GetDriverOrdersResponse'
         '400':
           description: invalid parameters
           content: 
@@ -1324,7 +1324,7 @@ components:
       - email
       - code
       - password
-    GetOrdersResponse:
+    GetRestaurantOrdersResponse:
       title: Restaurant history orders response body
       type: object
       properties:
@@ -1337,9 +1337,9 @@ components:
           properties:
             data:
               type: array
-              description: history orders data
+              description: restaurant history orders data
               items:
-                $ref: '#/components/schemas/OrderSummary'
+                $ref: '#/components/schemas/RestaurantOrderSummary'
             totalPage:
               type: number
               description: total page count
@@ -1351,7 +1351,7 @@ components:
             page:
               type: number
               description: current page number
-    OrderSummary:
+    RestaurantOrderSummary:
       description: history orders item object
       type: object
       properties:
@@ -1394,12 +1394,121 @@ components:
         customerPhone:
           type: string
           example: "6691234567"
-        restaurantId:
+        driver:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            firstName:
+              type: string
+              example: Steven
+            lastName:
+              type: string
+              example: Pan
+            middleName:
+              type: string
+              example: null
+            email:
+              type: string
+              example: stevenxpan@yahoo.com
+            phone:
+              type: string
+              example: "4081234567"
+    GetDriverOrdersResponse:
+      title: Driver history orders response body
+      type: object
+      properties:
+        code:
+          type: number
+          description: HTTP status code
+          example: 200
+        data:
+          type: object
+          properties:
+            data:
+              type: array
+              description: driver history orders data
+              items:
+                $ref: '#/components/schemas/DriverOrderSummary'
+            totalPage:
+              type: number
+              description: total page count
+              example: 1
+            pageSize:
+              type: number
+              description: current page size
+              example: 10
+            page:
+              type: number
+              description: current page number
+    DriverOrderSummary:
+      description: history orders item object
+      type: object
+      properties:
+        id: 
           type: integer
           example: 1
-        driverId:
-          type: integer
-          example: 1
-        transactionId:
-          type: integer
-          example: 1
+        estimatedDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        estimatedDeliveryCost:
+          type: string
+          example: "50.25"
+        actualDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        actualDeliveryCost:
+          type: string
+          example: "50.25"
+        status:
+          type: string
+          example: DELIVERED
+        customerStreet: 
+          type: string
+          example: "One Apple Park Way"
+        customerCity: 
+          type: string
+          example: "Cupertino"
+        customerState:
+          type: string
+          example: "CA"
+        customerZipCode:
+          type: string
+          example: "95014"
+        customerName:
+          type: string
+          example: "Tim Cook"
+        customerEmail:
+          type: string
+          example: "xd.cs157c@gmail.com"
+        customerPhone:
+          type: string
+          example: "6691234567"
+        restaurant:
+          type: object
+          properties:
+            id:
+              type: number
+              example: 1
+            email:
+              type: string
+              example: steven.panxd@gmail.com
+            phone:
+              type: string
+              example: "4081234567"
+            name:
+              type: string
+              example: My Restaurant
+            street:
+              type: string
+              example: 1 Washington Square
+            city:
+              type: string
+              example: San Jose
+            state:
+              type: string
+              example: California
+            zipCode:
+              type: string
+              example: "95192"
