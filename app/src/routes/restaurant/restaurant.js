@@ -7,7 +7,9 @@ var { getRestaurantEmailCodeValidator,
       getRestaurantResetPasswordEmailCodeValidator,
       postRestaurantResetPasswordValidator,
       deleteRestaurantAccountValidator,
-      getRestaurantOrdersValidator
+      getRestaurantOrdersValidator,
+      postDeliveryOrderValidator,
+      getEstimatedValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
@@ -152,7 +154,7 @@ router.patch('/reset/password', postRestaurantResetPasswordValidator, async func
   Utils.makeResponse(res, 200, "Succeed");
 });
 
-
+// get restaurant order history
 router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequired, async function(req, res) {
   const page = req.query.page;
   const pageSize = req.query.pageSize;
@@ -204,6 +206,16 @@ router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequire
     totalPage: totalPage,
     page: page,
   });
+});
+
+// calculate estimated order price and delivery time?
+router.get('/order/estimated', getEstimatedValidator, Utils.restaurantLoginRequired, async function(req, res) {
+
+});
+
+// create a new order, need assign the order to a driver?
+router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired, async function(req, res) {
+
 });
 
 
