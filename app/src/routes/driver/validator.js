@@ -137,8 +137,15 @@ const deleteDriverAccountValidator = [
 
 const getDriverOrdersValidator = [
   query('page').optional().default(1).isInt().withMessage('Invalid page number').toInt(),
-  query('pageSize').optional().default(10).isInt().withMessage('Invalid page size').toInt()
+  query('pageSize').optional().default(10).isInt().withMessage('Invalid page size').toInt(),
+  Utils.validate
 ];
+
+const updateLocationValidator = [
+  query('latitude').exists().withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude"),
+  query('longitude').exists().withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude'),
+  Utils.validate
+]
 
 module.exports = {
     getDriverEmailCodeValidator,
@@ -148,5 +155,6 @@ module.exports = {
     getDriverResetPasswordEmailCodeValidator,
     postDriverResetPasswordValidator,
     deleteDriverAccountValidator,
-    getDriverOrdersValidator
+    getDriverOrdersValidator,
+    updateLocationValidator
 }

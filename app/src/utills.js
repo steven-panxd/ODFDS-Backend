@@ -158,6 +158,7 @@ class Utils {
             return Utils.makeResponse(res, 401, "Invalid json web token"); 
         }
 
+        // if no user found from the database
         if (!user) {
             return Utils.makeResponse(res, 401, "Invalid json web token"); 
         }

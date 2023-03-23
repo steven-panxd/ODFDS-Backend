@@ -7,9 +7,11 @@ var { getDriverEmailCodeValidator,
       getDriverResetPasswordEmailCodeValidator,
       postDriverResetPasswordValidator,
       deleteDriverAccountValidator,
-      getDriverOrdersValidator
+      getDriverOrdersValidator,
+      updateLocationValidator
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
+var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
 var Utils = require('../../utills');
 
@@ -132,6 +134,7 @@ router.patch('/reset/password', postDriverResetPasswordValidator, async function
   Utils.makeResponse(res, 200, "Succeed");
 });
 
+// get driver order history
 router.get('/orders', getDriverOrdersValidator, Utils.driverLoginRequired, async function(req, res) {
   const page = req.query.page;
   const pageSize = req.query.pageSize;
@@ -185,6 +188,31 @@ router.get('/orders', getDriverOrdersValidator, Utils.driverLoginRequired, async
     totalPage: totalPage,
     page: page,
   });
+});
+
+// driver update their current location function
+router.get('/updateLocation', updateLocationValidator, Utils.driverLoginRequired, async function(req, res) {
+  const lat = req.query.latitude;
+  const long = req.query.longitude;
+
+  await driverLocation.findOneAndUpdate({
+    driverId: req.user.id
+  }, {
+    location: {
+      type: "Point",
+      coordinates: [long, lat]
+    }
+  }, { upsert: true });
+
+  Utils.makeResponse(res, 200, "Succeed");
+});
+
+router.get('/logout', Utils.driverLoginRequired, async function(req, res) {
+  await driverLocation.deleteOne({
+    driverId: req.user.id
+  });
+
+  Utils.makeResponse(res, 200, "Succeed");
 });
 
 module.exports = router;
