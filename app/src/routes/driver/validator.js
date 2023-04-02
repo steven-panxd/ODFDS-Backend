@@ -142,8 +142,18 @@ const getDriverOrdersValidator = [
 ];
 
 const updateLocationValidator = [
-  query('latitude').exists().withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude"),
-  query('longitude').exists().withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude'),
+  body('latitude').exists().withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude").custom(value => {
+    if (Math.abs(value) > 90) {
+      throw Error("Invalid latitude");
+    }
+    return true;
+  }),
+  body('longitude').exists().withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude').custom(value => {
+    if (Math.abs(value) > 180) {
+      throw Error("Invalid longitude");
+    }
+    return true;
+  }),
   Utils.validate
 ]
 
