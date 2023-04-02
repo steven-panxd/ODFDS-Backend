@@ -142,6 +142,10 @@ const getRestaurantOrdersValidator = [
 ]
 
 const getEstimatedValidator = [
+  body("street").exists().withMessage("Please input street"),
+  body("city").exists().withMessage("Please input city"),
+  body("state").exists().withMessage("Please input state"),
+  body("zipCode").exists().withMessage("Please input zip code"),
   Utils.validate
 ]
 

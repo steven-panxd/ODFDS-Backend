@@ -285,7 +285,7 @@ paths:
                       field: phone
                       value: 4081234567
                       message: Phone number is already taken, please try another phone number
-                # Invalid latitude or longtitude:
+                # Invalid latitude or longitude:
                 #   value:
                 #     code: 400
                 #     data:
@@ -449,6 +449,81 @@ paths:
                         field: pageSize
                         value: abc
                         message: Invalid page size
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+  /restaurant/order/estimate:
+    post:
+      description: get estimated distance and duration between restaurant and customer
+      tags:
+      - Restaurant
+      summary: get estimated distance and duration
+      parameters:
+        - in: header
+          name: access_token
+          schema:
+            type: string
+            description: restaurant access token
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestaurantEstimateRequest'
+      responses:
+        '200':
+          description: Succeed, received the estimated distance (in meters) and duration (in seconds)
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data:
+                    estimatedDistanceInMeters: 1555
+                    estimatedDurationInSeconds: 234
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                No street:
+                  value: 
+                    code: 400
+                    data:
+                      field: street
+                      value: null
+                      message: Please input street
+                No city:
+                  value: 
+                    code: 400
+                    data:
+                      field: city
+                      value: null
+                      message: Please input city
+                No state:
+                  value: 
+                    code: 400
+                    data:
+                      field: state
+                      value: null
+                      message: Please input state
+                No zipCode:
+                  value: 
+                    code: 400
+                    data:
+                      field: zipCode
+                      value: null
+                      message: Please input zip code
         '401':
           description: Unauthorized
           content:
@@ -895,6 +970,97 @@ paths:
               example:
                 code: 401
                 data: Please log in
+  /driver/updateLocation:
+    post:
+      description: Update driver's real-time location when they want to recive new orders
+      tags:
+      - Driver
+      summary: Update driver's real-time location
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: driver access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDriverLocationRequest'
+      responses:
+        '200':
+          description: Email code sent
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: succeed
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Invalid latitude:
+                  value:
+                    code: 400
+                    data:
+                      field: latitude
+                      value: abc
+                      message: invalid latitude
+                Invalid longitude:
+                  value:
+                    code: 400
+                    data:
+                      field: longitude
+                      value: abc
+                      message: Invalid longitude
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+    delete:
+      description: Delete driver's real-time location when they don't want to recive new orders
+      tags:
+      - Driver
+      summary: Delete driver's real-time location
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: driver access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      responses:
+        '200':
+          description: Email code sent
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: succeed
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
   /common/upload/image:
     post:
       description: upload an image to the server
@@ -1031,9 +1197,9 @@ components:
             #   type: number
             #   description: restaurant latitude
             #   example: 37.33482353097262
-            # longtitude:
+            # longitude:
             #   type: number
-            #   description: restaurant longtitude
+            #   description: restaurant longitude
             #   example: -121.88420310757643
     UpdateRestaurantProfileRequest:
       title: Restaurant account profile update request body
@@ -1067,9 +1233,9 @@ components:
         #   type: number
         #   description: restaurant latitude
         #   example: 37.33482353097262
-        # longtitude:
+        # longitude:
         #   type: number
-        #   description: restaurant longtitude
+        #   description: restaurant longitude
         #   example: -121.88420310757643
     RestaurantLoginRequest:
       title: Restaurant account log in request body
@@ -1127,9 +1293,9 @@ components:
         #   type: number
         #   description: restaurant latitude
         #   example: 37.33482353097262
-        # longtitude:
+        # longitude:
         #   type: number
-        #   description: restaurant longtitude
+        #   description: restaurant longitude
         #   example: -121.88420310757643
       required:
         - email
@@ -1141,7 +1307,7 @@ components:
         - state
         - zipCode
         # - latitude
-        # - longtitude
+        # - longitude
     DriverLoginRequest:
       title: Driver account log in request body
       type: object
@@ -1512,3 +1678,37 @@ components:
             zipCode:
               type: string
               example: "95192"
+    UpdateDriverLocationRequest:
+      title: Driver real time location update request body
+      type: object
+      properties:
+        latitude:
+          type: number
+          example: 37.33539903922244
+        longitude:
+          type: number
+          example: -121.8806361280556
+      required:
+        - latitude
+        - longitude
+    RestaurantEstimateRequest:
+      title: distance and duration estimation between restaurant and customer request
+      type: object
+      properties:
+        street:
+          type: string
+          example: One Apple Park Way
+        city:
+          type: string
+          example: Cupertino
+        state:
+          type: string
+          example: CA
+        zipCode:
+          type: string
+          example: 95014
+      required:
+        - street
+        - city
+        - state
+        - zipCode

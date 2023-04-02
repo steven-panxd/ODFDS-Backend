@@ -6,6 +6,9 @@ var { validationResult } = require('express-validator');
 var { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient()
 
+const { Client } = require("@googlemaps/google-maps-services-js");
+const googleMapsClient = new Client({});
+
 class Utils {
     // make a fixed format response to the front end
     // example: {"code": 200, "data": "succeed" }
@@ -166,6 +169,35 @@ class Utils {
         user = Utils.exclude(user, ["passwordHash"]);  // exclude password hash from the db query set
         req.user = user;
         next();
+    }
+
+    static async calculateDistance(originAddr, destAddr, mode = "driving", units = "imperial", timeout = 1000) {
+        let data = {
+            distance: null,
+            duration: null
+        }
+
+        await googleMapsClient.distancematrix({
+            params: {
+              key: process.env.GOOGLE_MAPS_API_KEY,
+              origins: [originAddr],
+              destinations: [destAddr],
+              mode: mode,
+              units: units
+            },
+            timeout: timeout,
+        }).then((r) => {
+            if (r.data.status == "OK") {
+                data.distance = r.data.rows[0].elements[0].distance.value;
+                data.duration = r.data.rows[0].elements[0].duration.value
+            } else {
+                console.log(r.data);
+            }
+        }).catch((e) => {
+            console.log(e);
+        });
+        
+        return data;
     }
 }
 

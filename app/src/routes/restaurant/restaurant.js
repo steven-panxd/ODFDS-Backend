@@ -209,8 +209,21 @@ router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequire
 });
 
 // calculate estimated order price and delivery time?
-router.get('/order/estimated', getEstimatedValidator, Utils.restaurantLoginRequired, async function(req, res) {
+router.post('/order/estimate', getEstimatedValidator, Utils.restaurantLoginRequired, async function(req, res) {
+  const street = req.body.street;
+  const city = req.body.city;
+  const state = req.body.state;
+  const zipCode = req.body.zipCode;
 
+  const originAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
+  const destAddr = street + ", " + city + ", " + state + ", " + zipCode;
+
+  const result = await Utils.calculateDistance(originAddr, destAddr);
+
+  Utils.makeResponse(res, 200, {
+    estimatedDistanceInMeters: result.distance,
+    estimatedDurationInSeconds: result.duration
+  });
 });
 
 // create a new order, need assign the order to a driver?
