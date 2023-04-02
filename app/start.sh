@@ -4,6 +4,5 @@ do
   # wait for a second before checking again
   sleep 1
 done
-
-npx prisma db push
+npx prisma db push --accept-data-loss
 npm run dev
