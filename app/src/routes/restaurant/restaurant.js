@@ -12,6 +12,7 @@ var { getRestaurantEmailCodeValidator,
       getEstimatedValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
+var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
 var Utils = require('../../utills');
 
@@ -224,6 +225,16 @@ router.post('/order/estimate', getEstimatedValidator, Utils.restaurantLoginRequi
     estimatedDistanceInMeters: result.distance,
     estimatedDurationInSeconds: result.duration
   });
+});
+
+router.get("/order/cloestDriver", Utils.restaurantLoginRequired, async function(req, res) {
+  const nearestDriver = await Utils.findNearestDriver(req);
+  
+  if (!nearestDriver) {
+    return Utils.makeResponse(res, 400, "No avaliable drivers");
+  }
+
+  Utils.makeResponse(res, 200, nearestDriver.email);
 });
 
 // create a new order, need assign the order to a driver?

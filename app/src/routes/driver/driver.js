@@ -191,7 +191,7 @@ router.get('/orders', getDriverOrdersValidator, Utils.driverLoginRequired, async
 });
 
 // driver update their current location function
-router.post('/updateLocation', updateLocationValidator, Utils.driverLoginRequired, async function(req, res) {
+router.post('/location', updateLocationValidator, Utils.driverLoginRequired, async function(req, res) {
   const lat = req.body.latitude;
   const longt = req.body.longitude;
 
@@ -208,7 +208,7 @@ router.post('/updateLocation', updateLocationValidator, Utils.driverLoginRequire
 });
 
 // driver delete location reports
-router.delete('/updateLocation', Utils.driverLoginRequired, async function(req, res) {
+router.delete('/location', Utils.driverLoginRequired, async function(req, res) {
   await driverLocation.deleteOne({
     driverId: req.user.id
   });
