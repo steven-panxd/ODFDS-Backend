@@ -970,7 +970,7 @@ paths:
               example:
                 code: 401
                 data: Please log in
-  /driver/updateLocation:
+  /driver/location:
     post:
       description: Update driver's real-time location when they want to recive new orders
       tags:

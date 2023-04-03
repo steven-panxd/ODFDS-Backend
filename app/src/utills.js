@@ -9,6 +9,8 @@ const db = new PrismaClient()
 const { Client } = require("@googlemaps/google-maps-services-js");
 const googleMapsClient = new Client({});
 
+var driverLocation  = require("../mongoose/schema/driverLocation");
+
 class Utils {
     // make a fixed format response to the front end
     // example: {"code": 200, "data": "succeed" }
@@ -171,6 +173,34 @@ class Utils {
         next();
     }
 
+    // convert an address to a coordinate by Google Maps API
+    static async getLatLng(address, timeout = 1000) {
+        let data = {
+            latitude: null,
+            longitude: null
+        }
+
+        await googleMapsClient.geocode({
+            params: {
+                address: address,
+                key: process.env.GOOGLE_MAPS_API_KEY
+            },
+            timeout: timeout,
+        }).then((r) => {
+            if (r.data.status == "OK") {
+                data.latitude = r.data.results[0].geometry.location.lat;
+                data.longitude = r.data.results[0].geometry.location.lng;
+            } else {
+                console.log(r.data);
+            }
+        }).catch((e) => {
+            console.log(e);
+        });
+
+        return data;
+    }
+
+    // calculate the distance and duration between two places by Google Maps API
     static async calculateDistance(originAddr, destAddr, mode = "driving", units = "imperial", timeout = 1000) {
         let data = {
             distance: null,
@@ -198,6 +228,57 @@ class Utils {
         });
         
         return data;
+    }
+
+    // find nearest driver to a restaurant by Gooogle Maps API, need req from a restaurant logined request
+    static async findNearestDriver(req) {
+        const address = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
+        const addressLatLong = await Utils.getLatLng(address);
+        
+        // find top 5 nearest drivers by MongoDB GeoLocation (straight-line distance)
+        const nearDrivers = await driverLocation.find({
+            location: {
+                $near: {
+                $geometry: {
+                        type: "Point",
+                        coordinates: [addressLatLong.longitude, addressLatLong.latitude]
+                    }
+                }
+            }
+        }).limit(5);
+
+        // No drivers avalible, return null
+        if (nearDrivers.length == 0) {
+            return null;
+        }
+
+        // use these two parameters to find the nearest driver by Google Maps API
+        let nearestDriverId = 0
+        let nearestDriverDistance = Infinity;
+        // Only one driver is avaliable, return that driver
+        if (nearDrivers.length == 1) {
+            nearestDriverId = nearDrivers[0].driverId;
+        } else {
+            // multiple drivers are avaliable, find and return the cloest driver by Google Maps API
+            const restaurantCoordinate = addressLatLong.latitude + ", " + addressLatLong.longitude;  // this is a constant
+            for (let i = 0; i < nearDrivers.length; i++) {
+                const driverCoordinate = nearDrivers[i].location.coordinates[1] + ", " + nearDrivers[i].location.coordinates[0]
+                const result = await Utils.calculateDistance(restaurantCoordinate, driverCoordinate);
+                if (result.distance < nearestDriverDistance) {
+                    nearestDriverId = nearDrivers[i].driverId;
+                    nearestDriverDistance = result.distance;
+                }
+            }
+        }
+
+        // find the nearest driver info from the MySQL Database
+        const driver = await db.driver.findUnique({
+            where: {
+              id: nearestDriverId
+            }
+        });
+
+        return driver;
     }
 }
 
