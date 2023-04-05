@@ -246,7 +246,9 @@ router.get("/order/cloestDriverWs", Utils.restaurantLoginRequired, async functio
 
   const wsClients = req.app.get("wsClients");
   const ws = wsClients.get(nearestDriver.id);
-  Utils.makeWsResponse(ws, 200, "You got an new order");
+
+
+  Utils.makeWsResponse(ws, 200, req.user);
 
   Utils.makeResponse(res, 200, nearestDriver.email);
 });
