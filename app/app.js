@@ -52,4 +52,7 @@ app.use('/restaurant', restaurantRouter);
 app.use('/driver', driverRouter);
 app.use('/common', commonRouter)
 
+// initiate a place to store all client websocket instances
+app.set("wsClients", new Map());
+
 module.exports = app;
