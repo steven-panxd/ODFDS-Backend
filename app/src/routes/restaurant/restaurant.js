@@ -56,7 +56,7 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
   // const latitude = req.body.latitude;
   // const longtitude = req.body.longtitude;
   var customerId;
-
+  var stripeError = false;
   //create stripe customer account at the same time as profile creation.
   await StripeWrapper.createRestaurantAccount({city, street, zipCode, state, email, name}).then(
     (result) => {
@@ -64,9 +64,14 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
     }
   ).catch(
     (error) => {
-      return Utils.makeResponse(res, error.raw.statusCode, error);
+      stripeError = true;
+      Utils.makeResponse(res, 500, error);
     }
   )
+
+  if (stripeError) {
+    return;
+  }
 
   await db.restaurant.create({
     data: {
@@ -119,6 +124,7 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
   // const latitude = req.body.latitude;
   // const longtitude = req.body.longtitude;
   var customerId;
+  var stripeError = false;
   //update stripe customer account at the same time as profile creation.
   await StripeWrapper.updateRestaurantAccount({
     customerId: req.user.stripeCustomerId,
@@ -134,9 +140,14 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
     }
   ).catch(
     (error) => {
-      return Utils.makeResponse(res, error.raw.statusCode, error);
+      stripeError = true;
+      Utils.makeResponse(res, error.raw.statusCode, error);
     }
   )
+
+  if (stripeError) {
+    return;
+  }
 
   await db.restaurant.update({
     where: {
