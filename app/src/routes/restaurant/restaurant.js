@@ -14,9 +14,12 @@ var { getRestaurantEmailCodeValidator,
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
+var StripeWrapper = require('./../../payment/StripeWrapper');
+
 var Utils = require('../../utills');
 
 var { PrismaClient } = require('@prisma/client');
+const { restaurantLoginRequired } = require('../../utills');
 const db = new PrismaClient()
 
 
@@ -52,6 +55,18 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
   const zipCode = req.body.zipCode;
   // const latitude = req.body.latitude;
   // const longtitude = req.body.longtitude;
+  var customerId;
+
+  //create stripe customer account at the same time as profile creation.
+  await StripeWrapper.createRestaurantAccount({city, street, zipCode, state, email, name}).then(
+    (result) => {
+      customerId = result.id;
+    }
+  ).catch(
+    (error) => {
+      return Utils.makeResponse(res, error.raw.statusCode, error);
+    }
+  )
 
   await db.restaurant.create({
     data: {
@@ -63,6 +78,7 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
       city: city,
       state: state,
       zipCode: zipCode,
+      stripeCustomerId: customerId
       // latitude: latitude,
       // longtitude: longtitude
     }
@@ -102,6 +118,25 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
   const zipCode = req.body.zipCode;
   // const latitude = req.body.latitude;
   // const longtitude = req.body.longtitude;
+  var customerId;
+  //update stripe customer account at the same time as profile creation.
+  await StripeWrapper.updateRestaurantAccount({
+    customerId: req.user.stripeCustomerId,
+    city: city || req.user.city, 
+    street: street || req.user.street, 
+    zipCode: zipCode || req.user.zipCode, 
+    state: state || req.user.state,
+    name: name || req.user.name,
+    email: req.user.email
+  }).then(
+    (result) => {
+      customerId = result.id;
+    }
+  ).catch(
+    (error) => {
+      return Utils.makeResponse(res, error.raw.statusCode, error);
+    }
+  )
 
   await db.restaurant.update({
     where: {
@@ -114,6 +149,7 @@ router.patch("/profile", Utils.restaurantLoginRequired, patchRestaurantProfileVa
       city: city,
       state: state,
       zipCode: zipCode,
+      stripeCustomerId: customerId //this probably won't change, but just to be safe
       // latitude: latitude,
       // longtitude: longtitude
     }

@@ -47,10 +47,11 @@ model Driver {
   firstName String
   lastName String?
   middleName String?
-  bankAccountNumber String
-  bankRoutingNumber String
+  // bankAccountNumber String
+  // bankRoutingNumber String
   receivedTransactions PaymentTransaction[]
   orders deliveryOrder[]
+  stripeAccountId String
 }
 
 model Restaurant {
@@ -69,6 +70,7 @@ model Restaurant {
   creditCards CreditCard[]
   sentTransactions PaymentTransaction[]
   orders deliveryOrder[]
+  stripeCustomerId String
 }
 
 model CreditCard {
