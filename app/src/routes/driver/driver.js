@@ -42,7 +42,7 @@ router.get('/emailCode', getDriverEmailCodeValidator, async function(req, res) {
 // sign up driver account
 router.post('/', postDriverSignUpValidator, async function(req, res) {
   var accountId;
-
+  var stripeError = false;
   await StripeWrapper.createDriverAccount({
     email: req.body.email,
     firstName: req.body.firstName,
@@ -54,9 +54,14 @@ router.post('/', postDriverSignUpValidator, async function(req, res) {
     }
   ).catch(
     (error) => {
-      return Utils.makeResponse(res, error.raw.statusCode, error);
+      stripeError = true;
+      Utils.makeResponse(res, error.raw.statusCode, error);
     }
   )
+
+  if (stripeError) {
+    return;
+  }
 
   await db.driver.create({
     data: {
@@ -100,7 +105,7 @@ router.get("/profile", Utils.driverLoginRequired, function(req, res) {
 // update driver profile
 router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator, async function(req, res) {
   var accountId;
-
+  var stripeError = false;
   StripeWrapper.updateDriverAccount({
     firstName: req.body.firstname || req.user.firstName,
     lastName: req.body.lastName || req.user.LastName,
@@ -113,9 +118,14 @@ router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator,
   ).catch(
       (error) => {
         // console.log(error);
-        return Utils.makeResponse(res, 500, "Stripe Error");
+        stripeError = true;
+        Utils.makeResponse(res, 500, "Stripe Error");
       }
   )
+
+  if (stripeError) {
+    return;
+  }
 
   await db.driver.update({
     where: {
@@ -265,10 +275,13 @@ router.ws('/locationWebsocket', async function(ws, req) {
     return ws.close();  // this goes to ws.on("close", () => {})
   }
 
+  var sendMessageError = false;
+
   // when server receives a message from the client (frontend)
   ws.on('message', async function message(msg) {
     // validate if the message received is a json string
     if (!Utils.isJSON(msg)) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Invalid Json String");
     }
 
@@ -276,28 +289,34 @@ router.ws('/locationWebsocket', async function(ws, req) {
     const jsonMsg = JSON.parse(msg);
     // if no latitude
     if(!jsonMsg.hasOwnProperty("latitude")) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Please input latitude");
     }
     // if no longitude
     if(!jsonMsg.hasOwnProperty("longitude")) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Please input longitude");
     }
     // if latitude is not a number
     if(!Utils.isNumeric(jsonMsg.latitude)) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Invalid latitude");
     }
     // if longitude is not a number
     if(!Utils.isNumeric(jsonMsg.longitude)) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Invalid longitude");
     }
     // if latitude is out of bound
     const latitude = Utils.parseNumber(jsonMsg.latitude);
     if(Math.abs(latitude) > 90) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Invalid latitude");
     }
     // if longitude is out of bound
     const longitude = Utils.parseNumber(jsonMsg.longitude);
     if(Math.abs(longitude) > 180) {
+      sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Invalid longitude");
     }
     
@@ -314,6 +333,10 @@ router.ws('/locationWebsocket', async function(ws, req) {
     // if this is the first correctly update location request, store the client websocket instance for future use (sever may wanna send message to client)
     if(!clients.has(req.user.id)) {
       clients.set(req.user.id, ws);
+    }
+
+    if (sendMessageError) {
+      return;
     }
 
     Utils.makeWsResponse(ws, 201, "Succeed");
