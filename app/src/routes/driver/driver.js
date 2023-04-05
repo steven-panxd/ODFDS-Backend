@@ -101,17 +101,19 @@ router.get("/profile", Utils.driverLoginRequired, function(req, res) {
 router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator, async function(req, res) {
   var accountId;
 
-  StripeWrapper.updpateDriverAccount({
+  StripeWrapper.updateDriverAccount({
     firstName: req.body.firstname || req.user.firstName,
     lastName: req.body.lastName || req.user.LastName,
-    email: req.body.email || req.user.email
+    email: req.body.email || req.user.email,
+    stripeAccountId: req.user.stripeAccountId
   }).then(
     (result) => {
         accountId = result.id;
     }
   ).catch(
       (error) => {
-          return Utils.makeResponse(res, error.raw.statusCode, error)
+        // console.log(error);
+        return Utils.makeResponse(res, 500, "Stripe Error");
       }
   )
 
