@@ -21,7 +21,8 @@ class StripeWrapper{
         })
     }
 
-    static async updpateDriverAccount(profileData){
+    static async updateDriverAccount(profileData){
+        console.log(profileData);
         return await stripe.accounts.update(profileData.stripeAccountId, {
             individual: {
                 email: profileData.email,
