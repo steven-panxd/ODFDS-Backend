@@ -71,7 +71,7 @@ const postDriverLoginValidator = [
 const patchDriverProfileValidator = [
   body('phone').optional().isMobilePhone().withMessage("Invalid phone number"),
   body('driverLicenseNumber').optional(),
-  body('driverLicenseImage').optional().isURL().withMessage('Invalid driver license image url'),
+  body('driverLicenseImage').optional().isURL({require_tld: false}).withMessage('Invalid driver license image url'),
   body('firstName').optional(),
   body('lastName').optional(),
   body('middleName').optional(),
