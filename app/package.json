@@ -23,6 +23,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.1",
     "prisma": "^4.10.1",
+    "stripe": "^11.17.0",
     "swagger-ui-express": "^4.6.1",
     "yamljs": "^0.3.0"
   },
