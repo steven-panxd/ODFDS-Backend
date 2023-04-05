@@ -216,4 +216,89 @@ router.delete('/location', Utils.driverLoginRequired, async function(req, res) {
   Utils.makeResponse(res, 200, "Succeed");
 });
 
+
+// bug, reference: https://github.com/trasherdk/express-ws-original/issues/2
+// client need to wait a little bit to send the first message after connectted to the websocket
+router.ws('/locationWebsocket', async function(ws, req) {
+  // store all driver websocket connections
+  // { driverId: websocketClientInstance }
+  let clients = req.app.get("wsClients");
+
+  // authenticate user by accessToken in request
+  await Utils.driverloginRequiredWs(req, ws);
+  // close the websocket if authentication failed
+  if (!req.user) {
+    return ws.close();  // this goes to ws.on("close", () => {})
+  }
+
+  // when server receives a message from the client (frontend)
+  ws.on('message', async function message(msg) {
+    // validate if the message received is a json string
+    if (!Utils.isJSON(msg)) {
+      return Utils.makeWsResponse(ws, 400, "Invalid Json String");
+    }
+
+    // validate if the message received is a valid latitude and longitude
+    const jsonMsg = JSON.parse(msg);
+    // if no latitude
+    if(!jsonMsg.hasOwnProperty("latitude")) {
+      return Utils.makeWsResponse(ws, 400, "Please input latitude");
+    }
+    // if no longitude
+    if(!jsonMsg.hasOwnProperty("longitude")) {
+      return Utils.makeWsResponse(ws, 400, "Please input longitude");
+    }
+    // if latitude is not a number
+    if(!Utils.isNumeric(jsonMsg.latitude)) {
+      return Utils.makeWsResponse(ws, 400, "Invalid latitude");
+    }
+    // if longitude is not a number
+    if(!Utils.isNumeric(jsonMsg.longitude)) {
+      return Utils.makeWsResponse(ws, 400, "Invalid longitude");
+    }
+    // if latitude is out of bound
+    const latitude = Utils.parseNumber(jsonMsg.latitude);
+    if(Math.abs(latitude) > 90) {
+      return Utils.makeWsResponse(ws, 400, "Invalid latitude");
+    }
+    // if longitude is out of bound
+    const longitude = Utils.parseNumber(jsonMsg.longitude);
+    if(Math.abs(longitude) > 180) {
+      return Utils.makeWsResponse(ws, 400, "Invalid longitude");
+    }
+    
+    // update driver location on MongoDB database
+    await driverLocation.findOneAndUpdate({
+      driverId: req.user.id
+    }, {
+      location: {
+        type: "Point",
+        coordinates: [longitude, latitude]
+      }
+    }, { upsert: true });
+
+    // if this is the first correctly update location request, store the client websocket instance for future use (sever may wanna send message to client)
+    if(!clients.has(req.user.id)) {
+      clients.set(req.user.id, ws);
+    }
+
+    Utils.makeWsResponse(ws, 201, "Succeed");
+  });
+
+  // when client (frontend) disconnect with the server
+  ws.on('close', async function close(code, reason) {
+    if (req.user) {
+      // delete the location info on mongoDB database when disconnected
+      await driverLocation.deleteOne({
+        driverId: req.user.id
+      });
+      // delete the stored client websocket instance when disconnected
+      clients.delete(req.user.id);
+      console.log("see you " + req.user.email);
+    } else {
+      console.log("see you");
+    }
+  });
+});
+
 module.exports = router;

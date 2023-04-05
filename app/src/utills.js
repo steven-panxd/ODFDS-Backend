@@ -21,6 +21,15 @@ class Utils {
         });
     }
 
+    // make a fixed format websocket response to frontend
+    // example: { "code": 401, "data": "Unauthorized" }
+    static makeWsResponse(ws, status_code, data) {
+        ws.send(JSON.stringify({
+            code: status_code,
+            data: data
+        }));
+    }
+
     // validate parameters
     // validation rules are set in the corresponding validator.js file
     // based on express-validator plugin
@@ -173,6 +182,61 @@ class Utils {
         next();
     }
 
+    static async restaurantloginRequiredWs(req, ws) {
+        return Utils.loginRequiredWs(req, ws, "Restaurant");
+    }
+
+    static async driverloginRequiredWs(req, ws) {
+        return Utils.loginRequiredWs(req, ws, "Driver");
+    }
+
+    // authentication function for websocket
+    // return error message to frontend if failed, and ws.user is undefined
+    // otherwise, ws.user has the corresponding user information from database
+    static async loginRequiredWs(req, ws, accountType) {
+        const access_token = req.query.access_token;
+        if (!access_token) {
+            return Utils.makeWsResponse(ws, 401, "Please input access token");
+        }
+
+        const decoded = Utils.verifyToken(access_token);
+        if (!decoded) {
+            return Utils.makeWsResponse(ws, 401, "Please log in"); 
+        }
+
+        const type = decoded.type;
+        if (type != accountType) {
+            return Utils.makeWsResponse(ws, 401, "Please log in as a " + accountType); 
+        }
+
+        const id = decoded.id;
+        var user;
+        if (type == "Restaurant") {
+            user = await db.restaurant.findUnique({where: {id: id}});
+        } else if (type == "Driver") {
+            user = await db.driver.findUnique({where: {id:id}});
+        } else {
+            return Utils.makeWsResponse(res, 401, "Invalid json web token"); 
+        }
+
+        // if no user found from the database
+        if (!user) {
+            return Utils.makeWsResponse(res, 401, "Invalid json web token"); 
+        }
+
+        user = Utils.exclude(user, ["passwordHash"]);  // exclude password hash from the db query set
+        req.user = user;
+    }
+
+    // test if a string is a json string
+    static isJSON(str) {
+        try {
+            return (JSON.parse(str) && !!str);
+        } catch (e) {
+            return false;
+        }
+    }
+
     // convert an address to a coordinate by Google Maps API
     static async getLatLng(address, timeout = 1000) {
         let data = {
@@ -279,6 +343,18 @@ class Utils {
         });
 
         return driver;
+    }
+
+    // return true if the input if a number
+    // source: https://stackoverflow.com/questions/20169217/how-to-write-isnumber-in-javascript
+    static isNumeric(input) {
+        const temp = Number.parseFloat(input);
+        return typeof temp === 'number' && isFinite(temp);
+    }
+
+    // parse a number from a string
+    static parseNumber(input) {
+        return Number.parseFloat(input);
     }
 }
 

@@ -237,6 +237,20 @@ router.get("/order/cloestDriver", Utils.restaurantLoginRequired, async function(
   Utils.makeResponse(res, 200, nearestDriver.email);
 });
 
+router.get("/order/cloestDriverWs", Utils.restaurantLoginRequired, async function(req, res) {
+  const nearestDriver = await Utils.findNearestDriver(req);
+  
+  if (!nearestDriver) {
+    return Utils.makeResponse(res, 400, "No avaliable drivers");
+  }
+
+  const wsClients = req.app.get("wsClients");
+  const ws = wsClients.get(nearestDriver.id);
+  Utils.makeWsResponse(ws, 200, "You got an new order");
+
+  Utils.makeResponse(res, 200, nearestDriver.email);
+});
+
 // create a new order, need assign the order to a driver?
 router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired, async function(req, res) {
 
