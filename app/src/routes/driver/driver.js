@@ -41,28 +41,19 @@ router.get('/emailCode', getDriverEmailCodeValidator, async function(req, res) {
 
 // sign up driver account
 router.post('/', postDriverSignUpValidator, async function(req, res) {
-  var accountId;
-  var stripeError = false;
-  await StripeWrapper.createDriverAccount({
-    email: req.body.email,
-    firstName: req.body.firstName,
-    lastName: req.body.lastName,
-    phone: req.body.phone
-  }).then(
-    (result) => {
-      accountId = result.id;
-    }
-  ).catch(
-    (error) => {
-      stripeError = true;
-      Utils.makeResponse(res, error.raw.statusCode, error);
-    }
-  )
-
-  if (stripeError) {
-    return;
+  var result;
+  try {
+    result = await StripeWrapper.createDriverAccount({
+      email: req.body.email,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      phone: req.body.phone
+    });
+  } catch (stripeError) {
+    return Utils.makeResponse(res, 200, "Stripe Error: " + stripeError.message);
   }
 
+  var stripeAccountId = result.id;
   await db.driver.create({
     data: {
         email: req.body.email,
@@ -73,7 +64,7 @@ router.post('/', postDriverSignUpValidator, async function(req, res) {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         middleName: req.body.middleName,
-        stripeAccountId: accountId
+        stripeAccountId: stripeAccountId
     }
   });
   
@@ -104,29 +95,19 @@ router.get("/profile", Utils.driverLoginRequired, function(req, res) {
 
 // update driver profile
 router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator, async function(req, res) {
-  var accountId;
-  var stripeError = false;
-  StripeWrapper.updateDriverAccount({
-    firstName: req.body.firstname || req.user.firstName,
-    lastName: req.body.lastName || req.user.LastName,
-    email: req.body.email || req.user.email,
-    stripeAccountId: req.user.stripeAccountId
-  }).then(
-    (result) => {
-        accountId = result.id;
-    }
-  ).catch(
-      (error) => {
-        // console.log(error);
-        stripeError = true;
-        Utils.makeResponse(res, 500, "Stripe Error");
-      }
-  )
+  var result;
+  try {
+    result = await StripeWrapper.updateDriverAccount({
+      firstName: req.body.firstname || req.user.firstName,
+      lastName: req.body.lastName || req.user.LastName,
+      email: req.body.email || req.user.email,
+      stripeAccountId: req.user.stripeAccountId
+    })
+  } catch (stripeError) {
+    return Utils.makeResponse(res, 500, "Stripe Error: " + stripeError.message);
+  };
 
-  if (stripeError) {
-    return;
-  }
-
+  var stripeAccountId = result.id;
   await db.driver.update({
     where: {
       id: req.user.id
@@ -138,7 +119,7 @@ router.patch("/profile", Utils.driverLoginRequired, patchDriverProfileValidator,
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       middleName: req.body.middleName,
-      stripeAccountId: accountId //likely won't change
+      stripeAccountId: stripeAccountId //likely won't change
     }
   });
 
