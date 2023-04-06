@@ -7,7 +7,7 @@ const db = new PrismaClient()
 var Utils = require('../../utills');
 
 const getDriverEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").custom(async value => {
+  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (accountExist) {
         return Promise.reject("Email is already taken, please try another email address");
@@ -22,7 +22,7 @@ const getDriverEmailCodeValidator = [
 ]
 
 const postDriverSignUpValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").custom(async value => {
+  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (accountExist) {
       return Promise.reject("Email is already taken, please try another email address");
@@ -37,7 +37,7 @@ const postDriverSignUpValidator = [
   body('middleName').optional(),
   body('bankAccountNumber').exists().withMessage("Please input bank account number"),
   body('bankRoutingNumber').exists().withMessage("Please input bank routing number"),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
+  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "Driver"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -53,14 +53,14 @@ const postDriverSignUpValidator = [
 ]
 
 const postDriverLoginValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
+  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Account does not exist");
     }
     req.user = accountExist;
     }),
-    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
+    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.user.passwordHash)) {
         return Promise.reject("Incorrect password");
     };
@@ -81,7 +81,7 @@ const patchDriverProfileValidator = [
 ]
 
 const getDriverResetPasswordEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").custom(async value => {
+  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Driver account does not exist");
@@ -96,7 +96,7 @@ const getDriverResetPasswordEmailCodeValidator = [
 ]
 
 const postDriverResetPasswordValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
+  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (!accountExist) {
       return Promise.reject("Driver account does not exist");
@@ -104,7 +104,7 @@ const postDriverResetPasswordValidator = [
     req.user = accountExist;
   }),
   body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
+  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "DriverReset"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -120,7 +120,7 @@ const postDriverResetPasswordValidator = [
 ]
 
 const deleteDriverAccountValidator = [
-  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").custom(async function(value, { req }) {
+  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").bail().custom(async function(value, { req }) {
       const account = await db.driver.findUnique({
         where: {
           email: value
@@ -142,13 +142,13 @@ const getDriverOrdersValidator = [
 ];
 
 const updateLocationValidator = [
-  body('latitude').exists().withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude").custom(value => {
+  body('latitude').exists().withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude").bail().custom(value => {
     if (Math.abs(value) > 90) {
       throw Error("Invalid latitude");
     }
     return true;
   }),
-  body('longitude').exists().withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude').custom(value => {
+  body('longitude').exists().withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude').bail().custom(value => {
     if (Math.abs(value) > 180) {
       throw Error("Invalid longitude");
     }

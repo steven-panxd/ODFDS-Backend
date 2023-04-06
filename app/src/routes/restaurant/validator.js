@@ -7,7 +7,7 @@ const db = new PrismaClient()
 var Utils = require('../../utills');
 
 const getRestaurantEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").custom(async value => {
+  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (accountExist) {
         return Promise.reject("Email is already taken, please try another email address");
@@ -22,7 +22,7 @@ const getRestaurantEmailCodeValidator = [
 ]
 
 const postRestaurantSignUpValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").custom(async value => {
+  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (accountExist) {
       return Promise.reject("Email is already taken, please try another email address");
@@ -37,7 +37,7 @@ const postRestaurantSignUpValidator = [
   body('zipCode').exists().withMessage("Please select restaurant location"),
   // body('latitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid latitude'),
   // body('longtitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid longtitude'),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
+  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "Restaurant"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -53,14 +53,14 @@ const postRestaurantSignUpValidator = [
 ]
 
 const postRestaurantLoginValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
+  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Account does not exist");
     }
     req.user = accountExist;
     }),
-    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").custom(async (value, { req }) => {
+    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.user.passwordHash)) {
         return Promise.reject("Incorrect password");
     };
@@ -81,7 +81,7 @@ const patchRestaurantProfileValidator = [
 ]
 
 const getRestaurantResetPasswordEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").custom(async value => {
+  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Restaurant account does not exist");
@@ -96,7 +96,7 @@ const getRestaurantResetPasswordEmailCodeValidator = [
 ]
 
 const postRestaurantResetPasswordValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").custom(async (value, { req }) => {
+  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
       return Promise.reject("Restaurant account does not exist");
@@ -120,7 +120,7 @@ const postRestaurantResetPasswordValidator = [
 ]
 
 const deleteRestaurantAccountValidator = [
-  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").custom(async function(value, { req }) {
+  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").bail().custom(async function(value, { req }) {
       const account = await db.restaurant.findUnique({
         where: {
           email: value
