@@ -103,6 +103,7 @@ model PaymentTransaction {
 
 model deliveryOrder {
   id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
   estimatedDeliveryTime DateTime
   estimatedDeliveryCost Decimal @db.Decimal(15, 2)
   actualDeliveryTime DateTime?
@@ -112,8 +113,6 @@ model deliveryOrder {
   customerCity String
   customerState String
   customerZipCode String
-  // customerLatitude Decimal @db.Decimal(16, 12)
-  // customerLongtitude Decimal @db.Decimal(16, 12)
   customerName String
   customerEmail String
   customerPhone String
