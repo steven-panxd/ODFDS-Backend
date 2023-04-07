@@ -1524,6 +1524,9 @@ components:
         id: 
           type: integer
           example: 1
+        createdAt:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
         estimatedDeliveryTime:
           type: string
           example: "2023-03-22T10:00:00.000Z"
@@ -1615,6 +1618,9 @@ components:
         id: 
           type: integer
           example: 1
+        createdAt:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
         estimatedDeliveryTime:
           type: string
           example: "2023-03-22T10:00:00.000Z"

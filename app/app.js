@@ -1,4 +1,5 @@
 var express = require('express');
+require('express-async-errors');  // allows error handler to handle errors from async functions
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
@@ -11,6 +12,7 @@ var restaurantRouter = require("./src/routes/restaurant/restaurant");
 var driverRouter = require('./src/routes/driver/driver');
 var commonRouter = require('./src/routes/common/common');
 var paymentRouter = require('./src/routes/payment/stripe');
+const Utils = require('./src/utills');
 
 var app = express();
 
@@ -18,7 +20,6 @@ var app = express();
 app.use(cors())
 app.use(express.json())
 app.use(logger('dev'));
-app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -40,5 +41,15 @@ app.use('/payment', paymentRouter);
 
 // initiate a place to store all client websocket instances
 app.set("wsClients", new Map());
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    // return Server Error only when the app is running under production environment
+    if ("production" == process.env.NODE_ENV) {
+        return Utils.makeResponse(res, 500, "Server Error");
+    }
+    // otherwise, return detailed error message
+    Utils.makeResponse(res, 500, err.message.trim());
+});
 
 module.exports = app;

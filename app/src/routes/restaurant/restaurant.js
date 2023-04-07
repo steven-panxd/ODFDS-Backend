@@ -285,7 +285,25 @@ router.get("/order/cloestDriverWs", Utils.restaurantLoginRequired, async functio
 
 // create a new order, need assign the order to a driver?
 router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired, async function(req, res) {
-
+  // await db.deliveryOrder.create({
+  //   data: {
+  //     estimatedDeliveryCost: 100,
+  //     estimatedDeliveryTime: new Date(),
+  //     actualDeliveryCost: 100,
+  //     actualDeliveryTime: new Date(),
+  //     customerStreet: "One Apple Park Way",
+  //     customerCity: "San Jose",
+  //     customerState: "CA",
+  //     customerZipCode: "95112",
+  //     customerName: "Tim Cook",
+  //     customerEmail: "tim.cook@apple.com",
+  //     customerPhone: "4081234567",
+  //     restaurantId: 1,
+  //     driverId: 1,
+  //     transactionId: 1
+  //   }
+  // })
+  Utils.makeResponse(res, 200, "OK");
 });
 
 
