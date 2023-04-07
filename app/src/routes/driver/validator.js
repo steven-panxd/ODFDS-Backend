@@ -136,8 +136,8 @@ const deleteDriverAccountValidator = [
 ]
 
 const getDriverOrdersValidator = [
-  query('page').optional().default(1).isInt().withMessage('Invalid page number').toInt(),
-  query('pageSize').optional().default(10).isInt().withMessage('Invalid page size').toInt(),
+  query('page').exists().withMessage("Please input page number").isInt({min: 1}).withMessage("Page number must be an integer that is greater than or equal to 1").toInt(),
+  query('pageSize').exists().withMessage("Please input page size").isInt({min: 1}).withMessage("Page size must be an integer that is greater than or equal to 1").toInt(),
   Utils.validate
 ];
 
