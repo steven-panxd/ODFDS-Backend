@@ -150,6 +150,14 @@ const getEstimatedValidator = [
 ]
 
 const postDeliveryOrderValidator = [
+  body("customerStreet").exists().withMessage("Please input customer's street"),
+  body("customerCity").exists().withMessage("Please input customer's city"),
+  body("customerState").exists().withMessage("Please input customer's state"),
+  body("customerZipCode").exists().withMessage("Please input customer's zip code"),
+  body("customerName").exists().withMessage("Please input customer's name"),
+  body("customerEmail").exists().withMessage("Please input customer's email address").isEmail().withMessage("Invalid customer's email address"),
+  body("customerPhone").exists().withMessage("Please input customer's phone number").isMobilePhone().withMessage("Invalid customer's phone number"),
+  body("comment").optional(),
   Utils.validate
 ]
 

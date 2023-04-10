@@ -489,6 +489,7 @@ paths:
                 data:
                     estimatedDistanceInMeters: 1555
                     estimatedDurationInSeconds: 234
+                    estimatedPriceInDollars: 22.86
         '400':
           description: Invalid parameters
           content:

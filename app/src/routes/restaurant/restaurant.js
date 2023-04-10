@@ -18,7 +18,7 @@ var StripeWrapper = require('./../../payment/StripeWrapper');
 
 var Utils = require('../../utills');
 
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 
@@ -250,10 +250,12 @@ router.post('/order/estimate', getEstimatedValidator, Utils.restaurantLoginRequi
   const destAddr = street + ", " + city + ", " + state + ", " + zipCode;
 
   const result = await Utils.calculateDistance(originAddr, destAddr);
+  const estimatedPrice = Utils.calculatePrice(result.distance)
 
   Utils.makeResponse(res, 200, {
     estimatedDistanceInMeters: result.distance,
-    estimatedDurationInSeconds: result.duration
+    estimatedDurationInSeconds: result.duration,
+    estimatedPriceInDollars: estimatedPrice
   });
 });
 
@@ -277,7 +279,6 @@ router.get("/order/cloestDriverWs", Utils.restaurantLoginRequired, async functio
   const wsClients = req.app.get("wsClients");
   const ws = wsClients.get(nearestDriver.id);
 
-
   Utils.makeWsResponse(ws, 200, req.user);
 
   Utils.makeResponse(res, 200, nearestDriver.email);
@@ -285,24 +286,42 @@ router.get("/order/cloestDriverWs", Utils.restaurantLoginRequired, async functio
 
 // create a new order, need assign the order to a driver?
 router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired, async function(req, res) {
-  // await db.deliveryOrder.create({
-  //   data: {
-  //     estimatedDeliveryCost: 100,
-  //     estimatedDeliveryTime: new Date(),
-  //     actualDeliveryCost: 100,
-  //     actualDeliveryTime: new Date(),
-  //     customerStreet: "One Apple Park Way",
-  //     customerCity: "San Jose",
-  //     customerState: "CA",
-  //     customerZipCode: "95112",
-  //     customerName: "Tim Cook",
-  //     customerEmail: "tim.cook@apple.com",
-  //     customerPhone: "4081234567",
-  //     restaurantId: 1,
-  //     driverId: 1,
-  //     transactionId: 1
-  //   }
-  // })
+  const customerAddr = req.body.customerStreet + ", " + req.body.customerCity + ", " + req.body.customerState + ", " + req.body.customerZipCode;
+  const restaurantAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
+  
+  // find nearest driver
+  const nearestDriver = await Utils.findNearestDriver(req);
+  if (!nearestDriver) {
+    return Utils.makeResponse(res, 400, "No avaliable drivers");
+  }
+  const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
+
+  const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
+  const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
+  const estimatedCost = Utils.calculatePrice(result2.distance);
+
+  // estimatedDeliveryTime = Now + time the driver need to go to the restaurant + time the driver need to deliver the order from restaurant to customer
+  const estimatedDeliveryTime = new Date(new Date().getTime() + (result1.duration + result2.duration) * 1000);
+
+  await db.deliveryOrder.create({
+    data: {
+      estimatedDeliveryCost: estimatedCost,
+      estimatedDeliveryTime: estimatedDeliveryTime,
+      customerStreet: req.body.customerStreet,
+      customerCity: req.body.customerCity,
+      customerState: req.body.customerState,
+      customerZipCode: req.body.customerZipCode,
+      customerName: req.body.customerName,
+      customerEmail: req.body.customerEmail,
+      customerPhone: req.body.customerPhone,
+      restaurantId: req.user.id,
+      driverId: nearestDriver.id,
+      comment: req.body.comment,
+      status: OrderStatus.ASSIGNED,
+      transactionId: 1
+    }
+  });
+
   Utils.makeResponse(res, 200, "OK");
 });
 

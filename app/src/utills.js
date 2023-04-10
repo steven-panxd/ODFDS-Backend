@@ -317,11 +317,15 @@ class Utils {
         }
 
         // use these two parameters to find the nearest driver by Google Maps API
-        let nearestDriverId = 0
+        let nearestDriverId;
         let nearestDriverDistance = Infinity;
+        let nearestDriverLatitude;
+        let nearestDriverLongitude;
         // Only one driver is avaliable, return that driver
         if (nearDrivers.length == 1) {
             nearestDriverId = nearDrivers[0].driverId;
+            nearestDriverLatitude = nearDrivers[0].location.coordinates[1];
+            nearestDriverLongitude = nearDrivers[0].location.coordinates[0];
         } else {
             // multiple drivers are avaliable, find and return the cloest driver by Google Maps API
             const restaurantCoordinate = addressLatLong.latitude + ", " + addressLatLong.longitude;  // this is a constant
@@ -330,7 +334,8 @@ class Utils {
                 const result = await Utils.calculateDistance(restaurantCoordinate, driverCoordinate);
                 if (result.distance < nearestDriverDistance) {
                     nearestDriverId = nearDrivers[i].driverId;
-                    nearestDriverDistance = result.distance;
+                    nearestDriverLatitude = nearDrivers[i].location.coordinates[1];
+                    nearestDriverLongitude = nearDrivers[i].location.coordinates[0];
                 }
             }
         }
@@ -341,6 +346,9 @@ class Utils {
               id: nearestDriverId
             }
         });
+
+        driver.latitude = nearestDriverLatitude;
+        driver.longitude = nearestDriverLongitude;
 
         return driver;
     }
@@ -355,6 +363,27 @@ class Utils {
     // parse a number from a string
     static parseNumber(input) {
         return Number.parseFloat(input);
+    }
+
+    /**
+     * Round half up ('round half towards positive infinity')
+     * Negative numbers round differently than positive numbers.
+     */
+    // source: https://stackoverflow.com/questions/11832914/how-to-round-to-at-most-2-decimal-places-if-necessary
+    static roundHalfUp(num, decimalPlaces = 0) {
+        num = Math.round(num + "e" + decimalPlaces);
+        return Number(num + "e" + -decimalPlaces);
+    }
+
+    // The cost is based on distance and time (like how a taxi works) with a minimum cost of $5 (first mile is free) with subsequent mile is $2/mile.
+    static calculatePrice(distanceInMeters) {
+        const distanceInMiles = distanceInMeters * 0.000621371192;  // convert meters to miles
+        if (distanceInMiles < 1) {
+            return 5;
+        } else {
+            const result = ((distanceInMiles - 1) * 2) + 5;
+            return Utils.roundHalfUp(result, 2);  // round to 2 decimals
+        }
     }
 }
 
