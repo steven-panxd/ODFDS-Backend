@@ -102,6 +102,31 @@ router.post('/driver/update', Utils.driverLoginRequired, (req, res) => {
     )
 })
 
-//TODO: make payment
+//create payment intent
+//body.amountCents - the amount in USD cents to be charged
+//body.paymentMethodId - the ID of the stripe payment method being used for this transaction
+router.post('/create_payment_intent', Utils.restaurantLoginRequired, (req, res) => {
+    StripeWrapper.createPaymentIntent(req.user, req.body.amountCents, req.body.paymentMethodId).then(
+        (result) => {
+            Utils.makeResponse(res, 200, result)
+        }
+    ).catch(
+        (error) => {
+            Utils.makeResponse(res, error.raw.statusCode, error)
+        }
+    )
+})
+
+router.post('/set_payment_recipient', Utils.restaurantLoginRequired, (req, res) => {
+    StripeWrapper.setPaymentIntentRecipient(req.body.intentId, req.body.recipientAccountId).then(
+        (result) => {
+            Utils.makeResponse(res, 200, result)
+        }
+    ).catch(
+        (error) => {
+            Utils.makeResponse(res, error.raw.statusCode, error)
+        }
+    )
+})
 
 module.exports = router
