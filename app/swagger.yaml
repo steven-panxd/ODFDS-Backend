@@ -534,6 +534,37 @@ paths:
               example:
                 code: 401
                 data: Please log in
+  /restaurant/order:
+    post:
+      description: create a delivery order
+      tags:
+      - Restaurant
+      summary: create a delivery order
+      parameters:
+        - in: header
+          name: access_token
+          schema:
+            type: string
+            description: restaurant access token
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestaurantCreateOrderRequest'
+      responses:
+        '200':
+          description: Succeed, return order id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data:
+                    message: Order created
+                    orderId: 1
   /driver/emailCode:
     get:
       description: Get an email verification code for creating a driver account
@@ -1719,3 +1750,40 @@ components:
         - city
         - state
         - zipCode
+    RestaurantCreateOrderRequest:
+      title: restaurant create order request
+      type: object
+      properties:
+        customerStreet:
+          type: string
+          example: One Apple Park Way
+        customerCity:
+          type: string
+          example: Cupertino
+        customerState:
+          type: string
+          example: CA
+        customerZipCode:
+          type: string
+          example: 95014
+        customerEmail:
+          type: string
+          example: steven.panxd@gmail.com
+        customerPhone:
+          type: string
+          example: 4081234567
+        customerName:
+          type: string
+          example: Tim Cook
+        comment:
+          type: string
+          example: Please leave at the front door
+      required:
+        - customerStreet
+        - customerCity
+        - customerState
+        - customerZipCode
+        - customerEmail
+        - customerPhone
+        - customerName
+        - comment

@@ -1,7 +1,7 @@
 var express = require('express')
 var router = express.Router()
 var StripeWrapper = require('./../../payment/StripeWrapper');
-var Utils = require('./../../utills')
+var Utils = require('./../../utils')
 
 var { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient()

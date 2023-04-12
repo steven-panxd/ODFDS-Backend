@@ -12,7 +12,11 @@ const driverOnRouteSchema = new Schema({
           index: '2dsphere'
         }
     },
-    driverId: Number
+    driverId: Number,
+    createdAt: { 
+      type: Date,
+      default: Date.now 
+    }
 });
 
 driverOnRouteSchema.index({ location: "2dsphere" });

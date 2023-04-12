@@ -13,9 +13,8 @@ const driverLocationSchema = new Schema({
         }
     },
     driverId: Number,
-    expireAt: { 
-        type: Date, 
-        expires: 60, 
+    createdAt: { 
+        type: Date,
         default: Date.now 
     }
 });

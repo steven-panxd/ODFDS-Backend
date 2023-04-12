@@ -31,8 +31,10 @@ enum PaymentStatus {
 
 enum OrderStatus {
   ASSIGNED
+  ACCEPTED
   PICKEDUP
   DELIVERED
+  CANCELLED
 }
 
 model Driver {
@@ -47,8 +49,6 @@ model Driver {
   firstName String
   lastName String?
   middleName String?
-  // bankAccountNumber String
-  // bankRoutingNumber String
   receivedTransactions PaymentTransaction[]
   orders deliveryOrder[]
   stripeAccountId String
@@ -65,8 +65,6 @@ model Restaurant {
   city String
   state String
   zipCode String
-  // latitude Decimal @db.Decimal(16, 12)
-  // longtitude Decimal @db.Decimal(16, 12)
   creditCards CreditCard[]
   sentTransactions PaymentTransaction[]
   orders deliveryOrder[]

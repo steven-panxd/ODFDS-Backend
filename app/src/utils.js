@@ -3,15 +3,23 @@ var jwt = require('jsonwebtoken');
 var nodemailer = require('nodemailer');
 var { validationResult } = require('express-validator');
 
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 const { Client } = require("@googlemaps/google-maps-services-js");
 const googleMapsClient = new Client({});
 
 var driverLocation  = require("../mongoose/schema/driverLocation");
+var driverOnRoute = require('../mongoose/schema/driverOnRoute');
+var orderAssignHistory = require("../mongoose/schema/orderAssignHistory");
 
 class Utils {
+    static DriverStatus = {
+        WAITTING_ORDER: 1,
+        PENDING_ORDER_ACCEPTANCE: 2,
+        IN_DELIVERY: 3
+    }
+
     // make a fixed format response to the front end
     // example: {"code": 200, "data": "succeed" }
     static makeResponse(res, status_code, data) {
@@ -52,6 +60,7 @@ class Utils {
     // based on Nodemailer plugin
     // doc: https://nodemailer.com/usage/
     static async sendEmail(email, subject, htmlContent) {
+        console.log("Sending email to " + email);
         return new Promise((resolve, reject) => {
             const transporter = nodemailer.createTransport({
                 port: process.env.MAIL_PORT,
@@ -108,6 +117,71 @@ class Utils {
             id: driver_id
         }
         return jwt.sign(data, process.env.SECRET_KEY, { expiresIn: process.env.JWT_EXPIRE_TIME });
+    }
+
+    // generate a json web token for a customer to check their order status
+    static generateCustomerToken(order_id) {
+        var data = {
+            type: "Order",
+            id: order_id
+        }
+        return jwt.sign(data, process.env.SECRET_KEY);
+    }
+
+    // validate customer check order token
+    static async customerTokenRequired(req, res, next) {
+        const token = req.query.token;
+        if (!token) {
+            return Utils.makeResponse(res, 401, "Invalid token");
+        }
+
+        const decoded = Utils.verifyToken(token);
+        if (!decoded) {
+            return Utils.makeResponse(res, 401, "Invalid token"); 
+        }
+
+        const type = decoded.type;
+        if (type != "Order") {
+            return Utils.makeResponse(res, 401, "Invalid token"); 
+        }
+
+        const id = decoded.id;
+        var order;
+        order = await db.deliveryOrder.findUnique({
+            where: {id: id},
+            include: {
+                driver: {
+                    select: {
+                      id: true,
+                      lastName: true,
+                      firstName: true,
+                      middleName: true,
+                      phone: true,
+                      email: true
+                    }
+                },
+                restaurant: {
+                    select: {
+                        id: true,
+                        name: true,
+                        street: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                        phone: true,
+                        email: true
+                    }
+                }
+            },
+        })
+
+        // if no order found from the database
+        if (!order) {
+            return Utils.makeResponse(res, 401, "Invalid json web token"); 
+        }
+
+        req.order = order;
+        next()
     }
 
     // decode/verify a json web token, return null if error, otherwise, return original data
@@ -238,7 +312,7 @@ class Utils {
     }
 
     // convert an address to a coordinate by Google Maps API
-    static async getLatLng(address, timeout = 1000) {
+    static async getLatLng(address, timeout = 5000) {
         let data = {
             latitude: null,
             longitude: null
@@ -258,7 +332,8 @@ class Utils {
                 console.log(r.data);
             }
         }).catch((e) => {
-            console.log(e);
+            console.log("Google Maps API Error: " + e.message);
+            throw Error("Google Maps API Error: " + e.message);
         });
 
         return data;
@@ -282,8 +357,8 @@ class Utils {
             timeout: timeout,
         }).then((r) => {
             if (r.data.status == "OK") {
-                data.distance = r.data.rows[0].elements[0].distance.value;
-                data.duration = r.data.rows[0].elements[0].duration.value
+                data.distance = r.data.rows[0].elements[0].distance ? r.data.rows[0].elements[0].distance.value : null;
+                data.duration = r.data.rows[0].elements[0].duration ? r.data.rows[0].elements[0].duration.value : null;
             } else {
                 console.log(r.data);
             }
@@ -294,13 +369,16 @@ class Utils {
         return data;
     }
 
-    // find nearest driver to a restaurant by Gooogle Maps API, need req from a restaurant logined request
-    static async findNearestDriver(req) {
-        const address = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
-        const addressLatLong = await Utils.getLatLng(address);
-        
+    // find nearest driver to a restaurant by Gooogle Maps API, need restaurant information
+    static async findNearestDriver(restaurant, excludeDriverIds) {
+        const address = restaurant.street + ", " + restaurant.city + ", " + restaurant.state + ", " + restaurant.zipCode;
+        let addressLatLong = await Utils.getLatLng(address);
+    
         // find top 5 nearest drivers by MongoDB GeoLocation (straight-line distance)
         const nearDrivers = await driverLocation.find({
+            driverId: {
+                $nin: excludeDriverIds
+            },
             location: {
                 $near: {
                 $geometry: {
@@ -384,6 +462,239 @@ class Utils {
             const result = ((distanceInMiles - 1) * 2) + 5;
             return Utils.roundHalfUp(result, 2);  // round to 2 decimals
         }
+    }
+
+    // check driver status
+    static async checkDriverStatus(req, driverWs, driverId) {
+        const pendingAcceptOrders = await db.deliveryOrder.findFirst({
+            where: {
+                driverId: driverId,
+                status: OrderStatus.ASSIGNED
+            }
+        });
+
+        // if the driver has pending acceptance order
+        if (pendingAcceptOrders) {
+            return await this.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
+        }
+
+        const inDeliveryOrders = await db.deliveryOrder.findFirst({
+            where: {
+                driverId: driverId,
+                OR: [
+                    {
+                        status: OrderStatus.ACCEPTED
+                    },
+                    {
+                        status: OrderStatus.PICKEDUP
+                    }
+                ]
+            }
+        });
+
+        // if the driver has accepted in delivery order
+        if (inDeliveryOrders) {
+            return await Utils.assignInDeliveryOrderToDriver(req, driverWs, driverId, inDeliveryOrders);   
+        }
+
+        // otherwise, the driver does not have in process order
+        await Utils.removeDriverFromAnyOrder(driverWs, driverId);
+    }
+
+    static async updateDriverLocation(driverWs, driverId, latitude, longitude) {
+        if (driverWs.driverStatus == Utils.DriverStatus.WAITTING_ORDER) {
+            // update driver location on MongoDB database (no pending orders)
+            await driverLocation.findOneAndUpdate({
+                driverId: driverId
+            }, {
+                location: {
+                    type: "Point",
+                    coordinates: [longitude, latitude]
+                }
+            }, { upsert: true });
+        } else if (driverWs.driverStatus == Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE) {
+            // update & replace driver location on MongoDB database (has pending orders)
+            await driverOnRoute.findOneAndUpdate({
+                driverId: driverId
+            }, {
+                location: {
+                    type: "Point",
+                    coordinates: [longitude, latitude]
+                }
+            }, { upsert: true });
+        } else if (driverWs.driverStatus == Utils.DriverStatus.IN_DELIVERY) {
+            // append driver location on MongoDB database (in delivery process)
+            await driverOnRoute.create({
+                driverId: driverId,
+                location: {
+                    type: "Point",
+                    coordinates: [longitude, latitude]
+                }
+            });
+        }
+        Utils.makeWsResponse(driverWs, 200, "Succeed");
+    }
+
+    static async assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, order) {
+        await driverLocation.deleteOne({
+            driverId: driverId
+        });
+        driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
+        await orderAssignHistory.create({
+            driverId: driverId,
+            orderId: order.id
+        });
+
+        // reassign the order if driver does not accept in 2 mins
+        driverWs.timer = setTimeout(() => {
+            Utils.driverTimeoutOrder(req, driverWs, driverId, order);
+        }, 60000);
+
+        Utils.makeWsResponse(driverWs, 201, order)
+    }
+
+    static async assignInDeliveryOrderToDriver(req, driverWs, driverId, order) {
+        // delete driverLocation
+        await driverLocation.deleteOne({
+            driverId: driverId
+        });
+
+        driverWs.driverStatus = Utils.DriverStatus.IN_DELIVERY;
+
+        Utils.makeWsResponse(driverWs, 204, order)
+    }
+
+    static async reAssignOrder(req, order) {
+        // drivers that was assigned to this order or rejected this order, need to be excluded
+        let assignedDriverIds = [];
+        const rawData = await orderAssignHistory.find({ orderId: order.id }).select({_id: 0, driverId: 1});
+        rawData.map(obj => { assignedDriverIds.push(obj.driverId) });
+
+        const restaurant = await db.restaurant.findUnique({where: {id: order.restaurantId}});
+        const nearestDriver = await Utils.findNearestDriver(restaurant, assignedDriverIds);
+
+        // if no drivers avaliable, cancel this order
+        if(!nearestDriver) {
+            await Utils.cancelOrder(order);
+            return;
+        }
+        
+        // otherwise, assign this order to the new driver
+        await db.deliveryOrder.update({
+            where: {
+                id: order.id
+            },
+            data: {
+                driverId: nearestDriver.id
+            }
+        });
+        const newDriverWs = Utils.getDriverWsClient(req, nearestDriver.id);
+        await Utils.assignPendingAcceptanceOrderToDriver(req, newDriverWs, nearestDriver.id, order);
+    }
+
+    static async removeDriverFromAnyOrder(driverWs, driverId) {
+        await driverOnRoute.deleteMany({
+            driverId: driverId
+        });
+        driverWs.driverStatus = Utils.DriverStatus.WAITTING_ORDER;
+    }
+
+    static async driverAcceptOrder(req, driverWs, driverId, order) {
+        console.log(order);
+        
+        // clear reassign order timer
+        clearTimeout(driverWs.timer);
+
+        // set order status to accepted
+        await db.deliveryOrder.update({
+            where: {
+                id: order.id
+            },
+            data: {
+                status: OrderStatus.ACCEPTED
+            }
+        });
+
+        // remove all order assignment history
+        await orderAssignHistory.deleteMany({
+            orderId: order.id
+        });
+
+        await Utils.assignInDeliveryOrderToDriver(req, driverWs, driverId, order);
+    }
+
+    static async driverRejectOrder(req, oldDriverWs, oldDriverId, order) {
+        // clear reassign order timer
+        clearTimeout(oldDriverWs.timer);
+
+        // reassign order to a new driver, clean old driver records, notify the old driver
+        await Utils.reAssignOrder(req, order);
+        await Utils.removeDriverFromAnyOrder(oldDriverWs, oldDriverId);
+        Utils.makeWsResponse(oldDriverWs, 202, {
+            message: "Order rejected",
+            orderId: order.id
+        });
+    }
+
+    static async driverTimeoutOrder(req, oldDriverWs, oldDriverId, order) {
+         // clear reassign order timer
+         clearTimeout(oldDriverWs.timer);
+
+        // reassign order to a new driver, clean old driver records, notify the old driver
+        await Utils.reAssignOrder(req, order);
+        await Utils.removeDriverFromAnyOrder(oldDriverWs, oldDriverId);
+        Utils.makeWsResponse(oldDriverWs, 202, {
+            message: "Order timeout",
+            orderId: order.id
+        });
+    }
+
+    static async cancelOrder(order) {
+        // set order status to cancelled
+        await db.deliveryOrder.update({
+            where: {
+                id: order.id
+            },
+            data: {
+                status: OrderStatus.CANCELLED
+            }
+        });
+
+        // remove all order assign history
+        await orderAssignHistory.deleteMany({
+            orderId: order.id
+        });
+
+        // send email notifications to restaurant and customer
+        const restaurant = await db.restaurant.findUnique({where: {id: order.restaurantId}});
+        await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to driver shortage.</h2>");
+        await Utils.sendEmail(restaurant.email, "To Restaurant: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to driver shortage.</h2>");
+    }
+
+    static async getDriverOnRouteLocation(driverId) {
+        const driverOnRouteLocation = await driverOnRoute.find({
+            driverId: driverId
+        }).orderBy({createdAt: "desc"}).limit(1);
+
+        return {
+            latitude: driverOnRouteLocation.location.coordinates[1],
+            longitude: driverOnRouteLocation.location.coordinates[0]
+        }
+    }
+
+    static getDriverWsClient(req, driverId) {
+        const clients = req.app.get("wsDriverClients");
+        return clients.get(driverId);
+    }
+
+    static setDriverWsClient(req, driverId, ws) {
+        const clients = req.app.get("wsDriverClients");
+        clients.set(driverId, ws);
+    }
+
+    static removeDriverWsClient(req, driverId) {
+        const clients = req.app.get("wsDriverClients");
+        clients.delete(driverId);
     }
 }
 

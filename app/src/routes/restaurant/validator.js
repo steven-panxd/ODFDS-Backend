@@ -4,7 +4,7 @@ var emailValidate = require("../../../mongoose/schema/emailValidation");
 var { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient()
 
-var Utils = require('../../utills');
+var Utils = require('../../utils');
 
 const getRestaurantEmailCodeValidator = [
   query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
@@ -150,14 +150,44 @@ const getEstimatedValidator = [
 ]
 
 const postDeliveryOrderValidator = [
-  body("customerStreet").exists().withMessage("Please input customer's street"),
-  body("customerCity").exists().withMessage("Please input customer's city"),
-  body("customerState").exists().withMessage("Please input customer's state"),
-  body("customerZipCode").exists().withMessage("Please input customer's zip code"),
-  body("customerName").exists().withMessage("Please input customer's name"),
-  body("customerEmail").exists().withMessage("Please input customer's email address").isEmail().withMessage("Invalid customer's email address"),
-  body("customerPhone").exists().withMessage("Please input customer's phone number").isMobilePhone().withMessage("Invalid customer's phone number"),
+  body("customerStreet").exists({ checkFalsy: true }).withMessage("Please input customer's street"),
+  body("customerCity").exists({ checkFalsy: true }).withMessage("Please input customer's city"),
+  body("customerState").exists({ checkFalsy: true }).withMessage("Please input customer's state"),
+  body("customerZipCode").exists({ checkFalsy: true }).withMessage("Please input customer's zip code"),
+  body("customerName").exists({ checkFalsy: true }).withMessage("Please input customer's name"),
+  body("customerEmail").exists({ checkFalsy: true }).withMessage("Please input customer's email address").isEmail().withMessage("Invalid customer's email address"),
+  body("customerPhone").exists({ checkFalsy: true }).withMessage("Please input customer's phone number").isMobilePhone().withMessage("Invalid customer's phone number"),
   body("comment").optional(),
+  Utils.validate
+]
+
+const getOrderDetailValidator = [
+  query("orderId").exists().withMessage("Please input order id").isInt().withMessage("Invalid order id").bail().custom(async (value, { req }) => {
+    const order = await db.deliveryOrder.findUnique({
+      where: {
+        id: value
+      },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            lastName: true,
+            firstName: true,
+            middleName: true,
+            phone: true,
+            email: true
+          }
+        },
+        restaurant: {
+          id: true
+        }
+      }
+    });
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+    req.order = order;
+  }),
   Utils.validate
 ]
 
@@ -171,5 +201,6 @@ module.exports = {
     deleteRestaurantAccountValidator,
     getRestaurantOrdersValidator,
     getEstimatedValidator,
-    postDeliveryOrderValidator
+    postDeliveryOrderValidator,
+    getOrderDetailValidator
 };
