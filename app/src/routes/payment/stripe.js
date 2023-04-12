@@ -1,6 +1,6 @@
 var express = require('express')
 var router = express.Router()
-var StripeWrapper = require('./../../payment/StripeWrapper');
+var StripeWrapper = require('./../../stripe/StripeWrapper');
 var Utils = require('./../../utills')
 
 var { PrismaClient } = require('@prisma/client');
@@ -112,13 +112,31 @@ router.post('/create_payment_intent', Utils.restaurantLoginRequired, (req, res) 
         }
     ).catch(
         (error) => {
+            console.log(error)
             Utils.makeResponse(res, error.raw.statusCode, error)
         }
     )
 })
 
+//update a payment intent to set the driver being paid
+//body.intentId - the payment intent being updated
+//body.recipientAccountId - the stripe account of the driver being paid
 router.post('/set_payment_recipient', Utils.restaurantLoginRequired, (req, res) => {
     StripeWrapper.setPaymentIntentRecipient(req.body.intentId, req.body.recipientAccountId).then(
+        (result) => {
+            Utils.makeResponse(res, 200, result)
+        }
+    ).catch(
+        (error) => {
+            Utils.makeResponse(res, error.raw.statusCode, error)
+        }
+    )
+})
+
+//confirm payment
+//body.intentId - the payment intent being confirmed
+router.post('/confirm_payment_intent', Utils.restaurantLoginRequired, (req, res) => {
+    StripeWrapper.confirmPaymentIntent(req.body.intentId).then(
         (result) => {
             Utils.makeResponse(res, 200, result)
         }

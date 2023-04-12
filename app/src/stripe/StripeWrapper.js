@@ -129,10 +129,16 @@ class StripeWrapper{
         })
     }
 
+    //set driver's connect account
     static async setPaymentIntentRecipient(intentId, recipientAccountId){
         return await stripe.paymentIntents.update(intentId, {
             on_behalf_of: recipientAccountId
         })
+    }
+
+    //make the payment go through
+    static async confirmPaymentIntent(intentId){
+        return await stripe.paymentIntents.confirm(intentId)
     }
 }
 
