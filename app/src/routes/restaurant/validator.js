@@ -162,7 +162,7 @@ const postDeliveryOrderValidator = [
 ]
 
 const getOrderDetailValidator = [
-  query("orderId").exists().withMessage("Please input order id").isInt().withMessage("Invalid order id").bail().custom(async (value, { req }) => {
+  query("orderId").exists().withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
     const order = await db.deliveryOrder.findUnique({
       where: {
         id: value
@@ -178,14 +178,19 @@ const getOrderDetailValidator = [
             email: true
           }
         },
-        restaurant: {
-          id: true
-        }
       }
     });
+
+    // if order does not exist
     if (!order) {
       return Promise.reject("Order does not exist");
     }
+
+    // if the order does not belong to the restaurant
+    if (req.user.id != order.restaurantId) {
+      return Promise.reject("This is not your order");
+    }
+
     req.order = order;
   }),
   Utils.validate

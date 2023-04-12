@@ -14,7 +14,6 @@ var { getDriverEmailCodeValidator,
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
-var driverOnRoute  = require("../../../mongoose/schema/driverOnRoute");
 
 var StripeWrapper = require('./../../payment/StripeWrapper');
 
@@ -255,24 +254,38 @@ router.get("/order", Utils.driverLoginRequired, async function(req, res) {
 });
 
 router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
-  let clients = req.app.get("wsDriverClients");
-  const driverWs = clients.get(req.user.id);
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 401, "Driver's websocket disconnected");
+  }
   await Utils.driverAcceptOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
 router.get("/order/reject", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
-  let clients = req.app.get("wsDriverClients");
-  const driverWs = clients.get(req.user.id);
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 401, "Driver's websocket disconnected");
+  }
   await Utils.driverRejectOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
 router.get("/order/pickUp", Utils.driverLoginRequired, driverPickUpOrderValidator, async function(req, res) {
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 401, "Driver's websocket disconnected");
+  }
+  await Utils.driverPickUpOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
 router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValidator, async function(req, res) {
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 401, "Driver's websocket is disconnected");
+  }
+  await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
@@ -284,7 +297,7 @@ router.ws('/location', async function(ws, req) {
   
   // close the websocket if driver authentication failed
   if (!req.user) {
-    return ws.close();  // this goes to ws.on("close", () => {})
+    return ws.close();
   }
 
   console.log("Hello " + req.user.email);

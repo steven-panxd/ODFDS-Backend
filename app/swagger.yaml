@@ -535,6 +535,36 @@ paths:
                 code: 401
                 data: Please log in
   /restaurant/order:
+    get:
+      description: get order detail
+      tags:
+      - Restaurant
+      summary: get order detail
+      parameters:
+        - in: header
+          name: access_token
+          schema:
+            type: string
+            description: restaurant access token
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+        - in: query
+          name: orderId
+          schema:
+            type: integer
+            description: order id
+            example: 1
+          required: true
+      responses:
+        '200':
+          description: Succeed, return order id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: order data
     post:
       description: create a delivery order
       tags:
@@ -565,6 +595,36 @@ paths:
                 data:
                     message: Order created
                     orderId: 1
+        '400':
+          description: Invalid parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 400
+                data:
+                  field: customerStreet
+                  value: null
+                  message: Please input customer's street
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+        '404':
+          description: No avaliable drivers
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 404
+                data: No avaliable drivers
   /driver/emailCode:
     get:
       description: Get an email verification code for creating a driver account

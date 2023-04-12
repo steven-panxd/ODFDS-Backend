@@ -187,7 +187,7 @@ router.patch('/reset/password', postRestaurantResetPasswordValidator, async func
 });
 
 // calculate estimated order price and delivery time?
-router.post('/order/estimate', getEstimatedValidator, Utils.restaurantLoginRequired, async function(req, res) {
+router.post('/order/estimate', Utils.restaurantLoginRequired, getEstimatedValidator, async function(req, res) {
   const street = req.body.street;
   const city = req.body.city;
   const state = req.body.state;
@@ -207,7 +207,7 @@ router.post('/order/estimate', getEstimatedValidator, Utils.restaurantLoginRequi
 });
 
 // get restaurant order history
-router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequired, async function(req, res) {
+router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidator, async function(req, res) {
   const page = req.query.page;
   const pageSize = req.query.pageSize;
 
@@ -261,15 +261,10 @@ router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequire
 });
 
 // get order detail information by order id
-router.get("/order", getOrderDetailValidator, Utils.restaurantLoginRequired, async function(req, res) {
-  // if the order does not belong to the restaurant
-  if (req.user.id != req.order.restaurant.id) {
-    return Utils.makeResponse(res, 403, "This is not your order");
-  }
-
+router.get("/order", Utils.restaurantLoginRequired, getOrderDetailValidator, async function(req, res) {
   // if the order is delivered
   req.order.restaurant = req.user;
-  if (req.order.status == OrderStatus.DELIVERED) {
+  if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED) {
     return Utils.makeResponse(res, 200, req.order);
   }
 
@@ -288,14 +283,14 @@ router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired,
   // find nearest driver
   const nearestDriver = await Utils.findNearestDriver(req.user, []);
   if (!nearestDriver) {
-    return Utils.makeResponse(res, 400, "No avaliable drivers");
+    return Utils.makeResponse(res, 404, "No avaliable drivers");
   }
   const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
 
   const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
   const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
   if (!(result1.duration && result2.duration)) {  // if there is no route between them
-    return Utils.makeResponse(res, 400, "No avaliable drivers");
+    return Utils.makeResponse(res, 404, "No avaliable drivers");
   }
   const estimatedCost = Utils.calculatePrice(result2.distance);
 
@@ -318,6 +313,20 @@ router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired,
       comment: req.body.comment,
       status: OrderStatus.ASSIGNED,
       transactionId: 1
+    },
+    include: {
+      restaurant: {
+        select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+        }
+      }
     }
   });
   
