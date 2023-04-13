@@ -1,7 +1,7 @@
 var mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const driverLocationSchema = new Schema({
+const driverOnRouteSchema = new Schema({
     location: {
         type: {
           type: String,
@@ -14,11 +14,11 @@ const driverLocationSchema = new Schema({
     },
     driverId: Number,
     createdAt: { 
-        type: Date,
-        default: Date.now 
+      type: Date,
+      default: Date.now 
     }
 });
 
-driverLocationSchema.index({ location: "2dsphere" });
+driverOnRouteSchema.index({ location: "2dsphere" });
 
-module.exports = new mongoose.model('driverLocation', driverLocationSchema, "driverLocation");
+module.exports = new mongoose.model('driverOnRoute', driverOnRouteSchema, "driverOnRoute");

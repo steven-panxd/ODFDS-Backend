@@ -13,26 +13,12 @@ enum Verification {
   NOTPASSED
 }
 
-enum CardType {
-  VISA
-  MASTERCARD
-  DISCOVER
-  AMEX
-}
-
-enum PaymentStatus {
-  PENDING
-  POSTED
-  PAYING
-  PAID
-  REFUNDING
-  REFUNDED
-}
-
 enum OrderStatus {
   ASSIGNED
+  ACCEPTED
   PICKEDUP
   DELIVERED
+  CANCELLED
 }
 
 model Driver {
@@ -47,9 +33,6 @@ model Driver {
   firstName String
   lastName String?
   middleName String?
-  // bankAccountNumber String
-  // bankRoutingNumber String
-  receivedTransactions PaymentTransaction[]
   orders deliveryOrder[]
   stripeAccountId String
 }
@@ -65,40 +48,8 @@ model Restaurant {
   city String
   state String
   zipCode String
-  // latitude Decimal @db.Decimal(16, 12)
-  // longtitude Decimal @db.Decimal(16, 12)
-  creditCards CreditCard[]
-  sentTransactions PaymentTransaction[]
   orders deliveryOrder[]
   stripeCustomerId String
-}
-
-model CreditCard {
-  id Int @id @default(autoincrement())
-  cardNumber String
-  name String
-  street String
-  city String
-  state String
-  zipCode String
-  cvv String
-  cardType CardType
-  restaurantId Int
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
-  relatedTransactions PaymentTransaction[]
-}
-
-model PaymentTransaction {
-  id Int @id @default(autoincrement())
-  amount Decimal @db.Decimal(15, 2)
-  status PaymentStatus @default(PENDING)
-  payerId Int
-  payeeId Int
-  cardId Int
-  payer Restaurant @relation(fields: [payerId], references: [id])
-  payee Driver @relation(fields: [payeeId], references: [id])
-  creditCard CreditCard @relation(fields: [cardId], references: [id])
-  orders deliveryOrder[]
 }
 
 model deliveryOrder {
@@ -118,10 +69,8 @@ model deliveryOrder {
   customerPhone String
   restaurantId Int
   driverId Int?
-  transactionId Int
-  comment String?
+  comment String? @db.Text
   trace String? @db.Text
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
   driver Driver? @relation(fields: [driverId], references: [id])
-  transaction PaymentTransaction @relation(fields: [transactionId], references: [id])
 }

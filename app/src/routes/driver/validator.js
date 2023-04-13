@@ -1,13 +1,13 @@
 var { body, param, query } = require('express-validator');
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
-var Utils = require('../../utills');
+var Utils = require('../../utils');
 
 const getDriverEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
+  query('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (accountExist) {
         return Promise.reject("Email is already taken, please try another email address");
@@ -22,22 +22,20 @@ const getDriverEmailCodeValidator = [
 ]
 
 const postDriverSignUpValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async value => {
+  body('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (accountExist) {
       return Promise.reject("Email is already taken, please try another email address");
     }
   }),
-  body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
-  body('phone').exists().isMobilePhone().withMessage("Invalid phone number"),
-  body('driverLicenseNumber').exists().withMessage("Please input driver license number"),
-  body('driverLicenseImage').exists().withMessage('Please input driver license image url').isURL({require_tld: false}).withMessage('Invalid driver license image url'),
-  body('firstName').exists().withMessage("Please input first name"),
-  body('lastName').exists().withMessage("Please input last name"),
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('phone').exists({ checkFalsy: true }).withMessage("Please input phone number").isMobilePhone().withMessage("Invalid phone number"),
+  body('driverLicenseNumber').exists({ checkFalsy: true }).withMessage("Please input driver license number"),
+  body('driverLicenseImage').exists({ checkFalsy: true }).withMessage('Please input driver license image url').isURL({require_tld: false}).withMessage('Invalid driver license image url'),
+  body('firstName').exists({ checkFalsy: true }).withMessage("Please input first name"),
+  body('lastName').exists({ checkFalsy: true }).withMessage("Please input last name"),
   body('middleName').optional(),
-  body('bankAccountNumber').exists().withMessage("Please input bank account number"),
-  body('bankRoutingNumber').exists().withMessage("Please input bank routing number"),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
+  body('code').exists({ checkFalsy: true }).withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "Driver"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -53,14 +51,14 @@ const postDriverSignUpValidator = [
 ]
 
 const postDriverLoginValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
+  body('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Account does not exist");
     }
     req.user = accountExist;
     }),
-    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.user.passwordHash)) {
         return Promise.reject("Incorrect password");
     };
@@ -81,7 +79,7 @@ const patchDriverProfileValidator = [
 ]
 
 const getDriverResetPasswordEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
+  query('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Driver account does not exist");
@@ -96,15 +94,15 @@ const getDriverResetPasswordEmailCodeValidator = [
 ]
 
 const postDriverResetPasswordValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
+  body('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.driver.findFirst({where: {email: value}});
     if (!accountExist) {
       return Promise.reject("Driver account does not exist");
     }
     req.user = accountExist;
   }),
-  body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('code').exists({ checkFalsy: true }).withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "DriverReset"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -120,7 +118,7 @@ const postDriverResetPasswordValidator = [
 ]
 
 const deleteDriverAccountValidator = [
-  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").bail().custom(async function(value, { req }) {
+  query("email").exists({ checkFalsy: true }).withMessage("Please input email address").isEmail().withMessage("Invalid email address").bail().custom(async function(value, { req }) {
       const account = await db.driver.findUnique({
         where: {
           email: value
@@ -136,23 +134,183 @@ const deleteDriverAccountValidator = [
 ]
 
 const getDriverOrdersValidator = [
-  query('page').exists().withMessage("Please input page number").isInt({min: 1}).withMessage("Page number must be an integer that is greater than or equal to 1").toInt(),
-  query('pageSize').exists().withMessage("Please input page size").isInt({min: 1}).withMessage("Page size must be an integer that is greater than or equal to 1").toInt(),
+  query('page').exists({ checkFalsy: true }).withMessage("Please input page number").isInt({min: 1}).withMessage("Page number must be an integer that is greater than or equal to 1").toInt(),
+  query('pageSize').exists({ checkFalsy: true }).withMessage("Please input page size").isInt({min: 1}).withMessage("Page size must be an integer that is greater than or equal to 1").toInt(),
   Utils.validate
 ];
 
 const updateLocationValidator = [
-  body('latitude').exists().withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude").bail().custom(value => {
+  body('latitude').exists({ checkFalsy: true }).withMessage("Please input latiude").isDecimal().withMessage("Invalid latitude").bail().custom(value => {
     if (Math.abs(value) > 90) {
       throw Error("Invalid latitude");
     }
     return true;
   }),
-  body('longitude').exists().withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude').bail().custom(value => {
+  body('longitude').exists({ checkFalsy: true }).withMessage("Please input longitude").isDecimal().withMessage('Invalid longitude').bail().custom(value => {
     if (Math.abs(value) > 180) {
       throw Error("Invalid longitude");
     }
     return true;
+  }),
+  Utils.validate
+]
+
+const getOrderDetailValidator = [
+  query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+    const order = await db.deliveryOrder.findUnique({
+      where: {
+        id: value
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // if order does not exist
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+
+    // if the order does not belong to current driver
+    if (req.user.id != order.driverId) {
+      return Promise.reject("This is not your order");
+    }
+
+    req.order = order;
+  }),
+  Utils.validate
+]
+
+const driverAcceptOrRejectOrderValidator = [
+  query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+    const order = await db.deliveryOrder.findUnique({
+      where: {
+        id: value
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // if order does not exist
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+
+    // if the order does not belong to current driver
+    if (req.user.id != order.driverId) {
+      return Promise.reject("This is not your order");
+    }
+
+    if (order.status != OrderStatus.ASSIGNED) {
+      return Promise.reject("Invalid order status = " + order.status);
+    }
+
+    req.order = order;
+  }),
+  Utils.validate
+]
+
+const driverPickUpOrderValidator = [
+  query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+    const order = await db.deliveryOrder.findUnique({
+      where: {
+        id: value
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // if order does not exist
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+
+    // if the order does not belong to current driver
+    if (req.user.id != order.driverId) {
+      return Promise.reject("This is not your order");
+    }
+
+    if (order.status != OrderStatus.ACCEPTED) {
+      return Promise.reject("Invalid order status = " + order.status);
+    }
+
+    req.order = order;
+  }),
+  Utils.validate
+]
+
+const driverDeliverOrderValidator = [
+  query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+    const order = await db.deliveryOrder.findUnique({
+      where: {
+        id: value
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // if order does not exist
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+
+    // if the order does not belong to current driver
+    if (req.user.id != order.driverId) {
+      return Promise.reject("This is not your order");
+    }
+
+    if (order.status != OrderStatus.PICKEDUP) {
+      return Promise.reject("Invalid order status = " + order.status);
+    }
+
+    req.order = order;
   }),
   Utils.validate
 ]
@@ -166,5 +324,9 @@ module.exports = {
     postDriverResetPasswordValidator,
     deleteDriverAccountValidator,
     getDriverOrdersValidator,
-    updateLocationValidator
+    updateLocationValidator,
+    driverPickUpOrderValidator,
+    driverDeliverOrderValidator,
+    driverAcceptOrRejectOrderValidator,
+    getOrderDetailValidator
 }
