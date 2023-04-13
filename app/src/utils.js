@@ -14,7 +14,10 @@ var driverLocation = require("../mongoose/schema/driverLocation");
 var driverOnRoute = require('../mongoose/schema/driverOnRoute');
 var orderAssignHistory = require("../mongoose/schema/orderAssignHistory");
 
+
+// some utils functions
 class Utils {
+    // driver status after stated send locations to backend
     static DriverStatus = {
         WAITTING_ORDER: 1,
         PENDING_ORDER_ACCEPTANCE: 2,
@@ -371,6 +374,7 @@ class Utils {
     }
 
     // encode a sequence of coordinates to a trace string
+    // source: https://developers.google.com/maps/documentation/utilities/polylineutility
     static encodeCoordinates(coordinates) {
         if (coordinates.length == 0) {
             return ""
@@ -475,7 +479,7 @@ class Utils {
         }
     }
 
-    // check driver status
+    // check driver order status
     static async checkDriverStatus(req, driverWs, driverId) {
         const pendingAcceptOrders = await db.deliveryOrder.findFirst({
             where: {
@@ -594,40 +598,47 @@ class Utils {
     }
 
     static async assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, order) {
+        // delete old reported location
         await driverLocation.deleteOne({
             driverId: driverId
         });
+        // set driverStatus
         driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
+        // create order assignment history, which will be used to avoid to reassign an order to a driver who rejected the order before
         await orderAssignHistory.create({
             driverId: driverId,
             orderId: order.id
         });
-
         // reassign the order if driver does not accept in 2 mins
         driverWs.timer = setTimeout(() => {
             Utils.driverTimeoutOrder(req, driverWs, driverId, order);
         }, 120000);
-
+        // notify driver a new order received
         Utils.makeWsResponse(driverWs, 201, order)
     }
 
     static async assignInPickUpOrderToDriver(req, driverWs, driverId, order) {
+        // set driverStatus
         driverWs.driverStatus = Utils.DriverStatus.IN_DELIVERY;
         Utils.makeWsResponse(driverWs, 204, order)
     }
 
     static async assignInDeliveryOrderToDriver(req, driverWs, driverId, order) {
+        // set driverStatus
         driverWs.driverStatus = Utils.DriverStatus.IN_DELIVERY;
         Utils.makeWsResponse(driverWs, 205, order)
     }
 
     static async reAssignOrder(req, order) {
-        // drivers that was assigned to this order or rejected this order, need to be excluded
+        // drivers that was assigned to this order rejected this order need to be excluded
         let assignedDriverIds = [];
+        // query order assignment history to find the drivers who was assigned to the order
         const rawData = await orderAssignHistory.find({ orderId: order.id }).select({ _id: 0, driverId: 1 });
         rawData.map(obj => { assignedDriverIds.push(obj.driverId) });
 
+        // find restaurat information
         const restaurant = await db.restaurant.findUnique({ where: { id: order.restaurantId } });
+        // find new nearest driver who never rejected this order
         const nearestDriver = await Utils.findNearestDriver(restaurant, assignedDriverIds);
 
         // if no drivers avaliable, cancel this order
@@ -635,8 +646,7 @@ class Utils {
             await Utils.cancelOrder(order);
             return;
         }
-
-        // otherwise, assign this order to the new driver
+        // otherwise, assign this order to the new driver (update order.driverId)
         order = await db.deliveryOrder.update({
             where: {
                 id: order.id
@@ -659,14 +669,18 @@ class Utils {
                 }
             }
         });
+        
+        // assign the order to new driver and notify the driver from websocket
         const newDriverWs = Utils.getDriverWsClient(req, nearestDriver.id);
         await Utils.assignPendingAcceptanceOrderToDriver(req, newDriverWs, nearestDriver.id, order);
     }
 
     static async removeDriverFromAnyOrder(driverWs, driverId) {
+        // remove a driver from any pending acceptance order
         await driverOnRoute.deleteMany({
             driverId: driverId
         });
+        // set driverStatus to waiting for order
         driverWs.driverStatus = Utils.DriverStatus.WAITTING_ORDER;
     }
 
@@ -698,7 +712,7 @@ class Utils {
             }
         });
 
-        // remove all order assignment history
+        // clear all order assignment history since the order is accepted by a driver
         await orderAssignHistory.deleteMany({
             orderId: order.id
         });
@@ -720,6 +734,7 @@ class Utils {
     }
 
     static async driverPickUpOrder(req, driverWs, driverId, order) {
+        // update order status to PICKEDUP
         order = await db.deliveryOrder.update({
             where: {
                 id: order.id
@@ -743,12 +758,15 @@ class Utils {
             }
         });
 
+        // send a email notification to the customer that your order is picked up
         await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is picked up", "<h2> Your order is picked up by driver:" + req.user.firstName + " " + req.user.lastName + ".</h2>");
         
+        // update driverWs.driverStatus and notify driver through wensocket
         await Utils.assignInDeliveryOrderToDriver(req, driverWs, driverId, order);
     }
 
     static async driverDeliverOrder(req, driverWs, driverId, order) {
+        // find all reached coordinates after the driver accepted the order and before the driver delivered the order
         const rawTracePoints = await driverOnRoute.find({
             driverId: driverId
         }).sort({ createdAt: "asc" });
@@ -760,7 +778,8 @@ class Utils {
                 lng: obj.location.coordinates[0]
             })
         });
-
+        // encode the coordinates into a string 
+        // google maps api, encodePath
         const trace = Utils.encodeCoordinates(tracePoints);
 
         // update order status to DELIVERED, and update trace to the order
@@ -770,7 +789,8 @@ class Utils {
             },
             data: {
                 status: OrderStatus.DELIVERED,
-                trace: trace
+                trace: trace,
+                actualDeliveryTime: new Date()
             },
             include: {
                 restaurant: {
@@ -782,6 +802,7 @@ class Utils {
         });
 
         await Utils.removeDriverFromAnyOrder(driverWs, driverId);
+        // send email notifications to customer and restaurant that the order is delivered
         await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is delivered", "<h2> Your order is delivered.</h2>");
         await Utils.sendEmail(order.restaurant.email, "To Restaurant: Your order #" + order.id + " is delivered", "<h2> Your order is delivered.</h2>");
 

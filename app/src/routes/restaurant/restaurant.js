@@ -262,9 +262,9 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
 
 // get order detail information by order id
 router.get("/order", Utils.restaurantLoginRequired, getOrderDetailValidator, async function(req, res) {
-  // if the order is delivered
+  // if the order is delivered or the driver hasn't accepted it
   req.order.restaurant = req.user;
-  if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED) {
+  if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED || req.order.status == OrderStatus.ASSIGNED) {
     return Utils.makeResponse(res, 200, req.order);
   }
 
@@ -283,17 +283,18 @@ router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired,
   // find nearest driver
   const nearestDriver = await Utils.findNearestDriver(req.user, []);
   if (!nearestDriver) {
-    return Utils.makeResponse(res, 404, "No avaliable drivers");
+    return Utils.makeResponse(res, 404, "No avaliable drivers online");
   }
   const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
 
   const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
   const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
-  if (!(result1.duration && result2.duration)) {  // if there is no route between them
-    return Utils.makeResponse(res, 404, "No avaliable drivers");
+  if (!(result1.duration && result2.duration)) {  // if there is no route between them, drivers are too far from the restaurant
+    return Utils.makeResponse(res, 404, "No avaliable drivers near you");
   }
-  const estimatedCost = Utils.calculatePrice(result2.distance);
 
+  // calculate estimated delivery time and price
+  const estimatedCost = Utils.calculatePrice(result2.distance);
   // estimatedDeliveryTime = Now + time the driver need to go to the restaurant + time the driver need to deliver the order from restaurant to customer
   const estimatedDeliveryTime = new Date(new Date().getTime() + (result1.duration + result2.duration) * 1000);
 

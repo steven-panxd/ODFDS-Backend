@@ -366,9 +366,16 @@ router.ws('/location', async function(ws, req) {
   // when client (frontend) disconnect with the server
   ws.on('close', async function close(code, reason) {
     if (req.user) {
-      if (req.user.pendingOrder) {
-        // do something if there is a pending order for the driver (reassignment)?
-      } else {
+      if (ws.driverStatus == Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE) {
+        // do something if there is a pending acceptance order for the driver (reassignment)
+        const order = await db.deliveryOrder.findFirst({
+          where: {
+            driverId: req.user.id,
+            status: OrderStatus.ASSIGNED
+          }
+        });
+        await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
+      } else if (ws.driverStatus == Utils.DriverStatus.WAITTING_ORDER) {
         // delete the location info on mongoDB database when disconnected
         await driverLocation.deleteMany({
           driverId: req.user.id
