@@ -312,8 +312,7 @@ router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired,
       restaurantId: req.user.id,
       driverId: nearestDriver.id,
       comment: req.body.comment,
-      status: OrderStatus.ASSIGNED,
-      transactionId: 1
+      status: OrderStatus.ASSIGNED
     },
     include: {
       restaurant: {
