@@ -105,7 +105,7 @@ router.post('/driver/update', Utils.driverLoginRequired, (req, res) => {
 //create payment intent
 //body.amountCents - the amount in USD cents to be charged
 //body.paymentMethodId - the ID of the stripe payment method being used for this transaction
-router.post('/create_payment_intent', Utils.restaurantLoginRequired, (req, res) => {
+router.post('/payment_intent', Utils.restaurantLoginRequired, (req, res) => {
     StripeWrapper.createPaymentIntent(req.user, req.body.amountCents, req.body.paymentMethodId).then(
         (result) => {
             Utils.makeResponse(res, 200, result)
@@ -118,30 +118,28 @@ router.post('/create_payment_intent', Utils.restaurantLoginRequired, (req, res) 
     )
 })
 
-//update a payment intent to set the driver being paid
-//body.intentId - the payment intent being updated
-//body.recipientAccountId - the stripe account of the driver being paid
-router.post('/set_payment_recipient', Utils.restaurantLoginRequired, (req, res) => {
-    StripeWrapper.setPaymentIntentRecipient(req.body.intentId, req.body.recipientAccountId).then(
+//query.intentId - the ID of the stripe payment intent to get
+router.get('/payment_intent', (req, res) => {
+    StripeWrapper.retreivePaymentIntent(req.query.intentId).then(
         (result) => {
             Utils.makeResponse(res, 200, result)
         }
     ).catch(
         (error) => {
+            console.log(error)
             Utils.makeResponse(res, error.raw.statusCode, error)
         }
     )
 })
 
-//confirm payment
-//body.intentId - the payment intent being confirmed
-router.post('/confirm_payment_intent', Utils.restaurantLoginRequired, (req, res) => {
-    StripeWrapper.confirmPaymentIntent(req.body.intentId).then(
+router.post('/transfer_funds', Utils.driverLoginRequired, (req, res) => {
+    StripeWrapper.transferFunds(req.body.amountCents, req.user.stripeAccountId).then(
         (result) => {
             Utils.makeResponse(res, 200, result)
         }
     ).catch(
         (error) => {
+            console.log(error)
             Utils.makeResponse(res, error.raw.statusCode, error)
         }
     )

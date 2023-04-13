@@ -125,20 +125,21 @@ class StripeWrapper{
             payment_method_types: ['card', 'us_bank_account'],
             customer: profileData.stripeCustomerId,
             payment_method: paymentMethodId,
-            receipt_email: profileData.email
+            receipt_email: profileData.email,
+            confirm: true
         })
     }
 
-    //set driver's connect account
-    static async setPaymentIntentRecipient(intentId, recipientAccountId){
-        return await stripe.paymentIntents.update(intentId, {
-            on_behalf_of: recipientAccountId
-        })
+    static async retreivePaymentIntent(intentId){
+        return await stripe.paymentIntents.retrieve(intentId)
     }
 
-    //make the payment go through
-    static async confirmPaymentIntent(intentId){
-        return await stripe.paymentIntents.confirm(intentId)
+    static async transferFunds(amountCents, driverAccountId){
+        return await stripe.transfers.create({
+            amount: amountCents,
+            currency: 'usd',
+            destination: driverAccountId
+        })
     }
 }
 
