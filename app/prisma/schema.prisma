@@ -117,7 +117,7 @@ model deliveryOrder {
   restaurantId Int
   driverId Int?
   transactionId Int
-  comment String?
+  comment String? @db.Text
   trace String? @db.Text
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
   driver Driver? @relation(fields: [driverId], references: [id])

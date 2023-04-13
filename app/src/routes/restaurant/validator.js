@@ -7,7 +7,7 @@ const db = new PrismaClient()
 var Utils = require('../../utils');
 
 const getRestaurantEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
+  query('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (accountExist) {
         return Promise.reject("Email is already taken, please try another email address");
@@ -22,22 +22,20 @@ const getRestaurantEmailCodeValidator = [
 ]
 
 const postRestaurantSignUpValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async value => {
+  body('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (accountExist) {
       return Promise.reject("Email is already taken, please try another email address");
     }
   }),
-  body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
-  body('phone').exists().isMobilePhone().withMessage("Invalid phone number"),
-  body('name').exists().withMessage("Please input restaurant name"),
-  body('street').exists().withMessage("Please select restaurant location"),
-  body('city').exists().withMessage("Please select restaurant location"),
-  body('state').exists().withMessage("Please select restaurant location"),
-  body('zipCode').exists().withMessage("Please select restaurant location"),
-  // body('latitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid latitude'),
-  // body('longtitude').exists().withMessage("Please select restaurant location").isDecimal().withMessage('Invalid longtitude'),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('phone').exists({ checkFalsy: true }).withMessage("Please input phone number").isMobilePhone().withMessage("Invalid phone number"),
+  body('name').exists({ checkFalsy: true }).withMessage("Please input restaurant name"),
+  body('street').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
+  body('city').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
+  body('state').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
+  body('zipCode').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
+  body('code').exists({ checkFalsy: true }).withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "Restaurant"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -53,14 +51,14 @@ const postRestaurantSignUpValidator = [
 ]
 
 const postRestaurantLoginValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
+  body('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Account does not exist");
     }
     req.user = accountExist;
     }),
-    body('password').isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
+    body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.user.passwordHash)) {
         return Promise.reject("Incorrect password");
     };
@@ -81,7 +79,7 @@ const patchRestaurantProfileValidator = [
 ]
 
 const getRestaurantResetPasswordEmailCodeValidator = [
-  query('email').exists().withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
+  query('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async value => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
         return Promise.reject("Restaurant account does not exist");
@@ -96,15 +94,15 @@ const getRestaurantResetPasswordEmailCodeValidator = [
 ]
 
 const postRestaurantResetPasswordValidator = [
-  body('email').exists().isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
+  body('email').exists({ checkFalsy: true }).withMessage("Please input email").isEmail().withMessage("Invalid email address").bail().custom(async (value, { req }) => {
     const accountExist = await db.restaurant.findFirst({where: {email: value}});
     if (!accountExist) {
       return Promise.reject("Restaurant account does not exist");
     }
     req.user = accountExist;
   }),
-  body('password').exists().isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
-  body('code').exists().withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('code').exists({ checkFalsy: true }).withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "RestaurantReset"});
     if (!codeExist) {
       return Promise.reject("Email verification code is expired, please try to request a new one");
@@ -120,7 +118,7 @@ const postRestaurantResetPasswordValidator = [
 ]
 
 const deleteRestaurantAccountValidator = [
-  query("email").exists().withMessage("Please input email address").isEmail().withMessage("Invalid email address").bail().custom(async function(value, { req }) {
+  query("email").exists({ checkFalsy: true }).withMessage("Please input email address").isEmail().withMessage("Invalid email address").bail().custom(async function(value, { req }) {
       const account = await db.restaurant.findUnique({
         where: {
           email: value
@@ -136,8 +134,8 @@ const deleteRestaurantAccountValidator = [
 ]
 
 const getRestaurantOrdersValidator = [
-  query('page').exists().withMessage("Please input page number").isInt({min: 1}).withMessage("Page number must be an integer that is greater than or equal to 1").toInt(),
-  query('pageSize').exists().withMessage("Please input page size").isInt({min: 1}).withMessage("Page size must be an integer that is greater than or equal to 1").toInt(),
+  query('page').exists({ checkFalsy: true }).withMessage("Please input page number").isInt({min: 1}).withMessage("Page number must be an integer that is greater than or equal to 1").toInt(),
+  query('pageSize').exists({ checkFalsy: true }).withMessage("Please input page size").isInt({min: 1}).withMessage("Page size must be an integer that is greater than or equal to 1").toInt(),
   Utils.validate
 ]
 
@@ -162,7 +160,7 @@ const postDeliveryOrderValidator = [
 ]
 
 const getOrderDetailValidator = [
-  query("orderId").exists().withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+  query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
     const order = await db.deliveryOrder.findUnique({
       where: {
         id: value

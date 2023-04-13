@@ -1664,14 +1664,6 @@ components:
           type: string
           description: driver's middle name
           example: null
-        bankAccountNumber:
-          type: string
-          description: driver's bank account number
-          example: 123456789
-        bankRoutingNumber:
-          type: string
-          description: driver's bank routing number
-          example: 123456789
       required:
         - email
         - code
@@ -1681,8 +1673,6 @@ components:
         - driverLicenseImage
         - firstName
         - lastName
-        - bankAccountNumber
-        - bankRoutingNumber
     GetDriverProfileResponse:
       description: Driver profile response body
       type: object
