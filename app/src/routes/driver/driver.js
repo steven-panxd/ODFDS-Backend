@@ -10,7 +10,8 @@ var { getDriverEmailCodeValidator,
       getDriverOrdersValidator,
       driverPickUpOrderValidator,
       driverDeliverOrderValidator,
-      driverAcceptOrRejectOrderValidator
+      driverAcceptOrRejectOrderValidator,
+      getOrderDetailValidator
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
@@ -217,46 +218,14 @@ router.get('/orders', Utils.driverLoginRequired, getDriverOrdersValidator, async
   });
 });
 
-router.get("/order", Utils.driverLoginRequired, async function(req, res) {
-  const pendingOrders = await db.deliveryOrder.findMany({
-    where: {
-      driverId: req.user.id,
-      OR: [
-        { status: OrderStatus.ASSIGNED },
-        { status: OrderStatus.ACCEPTED },
-        { status: OrderStatus.PICKEDUP }
-      ]
-    },
-    orderBy: {
-      id: 'desc'
-    },
-    include: {
-      restaurant: {
-        select: {
-          id: true,
-          email: true,
-          phone: true,
-          name: true,
-          street: true,
-          city: true,
-          state: true,
-          zipCode: true
-        }
-      }
-    }
-  });
-
-  if (!pendingOrders) {
-    return Utils.makeResponse(res, 404, "You don't have pending orders");
-  }
-
-  Utils.makeResponse(res, 200, pendingOrders);
-});
+// router.get("/order", Utils.driverLoginRequired, getOrderDetailValidator, async function(req, res) {
+//   Utils.makeResponse(res, 200, req.order);
+// });
 
 router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
   if (!driverWs) {
-    return Utils.makeResponse(res, 401, "Driver's websocket disconnected");
+    return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
   }
   await Utils.driverAcceptOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
@@ -265,7 +234,7 @@ router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrder
 router.get("/order/reject", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
   if (!driverWs) {
-    return Utils.makeResponse(res, 401, "Driver's websocket disconnected");
+    return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
   }
   await Utils.driverRejectOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
@@ -274,7 +243,7 @@ router.get("/order/reject", Utils.driverLoginRequired, driverAcceptOrRejectOrder
 router.get("/order/pickUp", Utils.driverLoginRequired, driverPickUpOrderValidator, async function(req, res) {
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
   if (!driverWs) {
-    return Utils.makeResponse(res, 401, "Driver's websocket disconnected");
+    return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
   }
   await Utils.driverPickUpOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
@@ -283,7 +252,7 @@ router.get("/order/pickUp", Utils.driverLoginRequired, driverPickUpOrderValidato
 router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValidator, async function(req, res) {
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
   if (!driverWs) {
-    return Utils.makeResponse(res, 401, "Driver's websocket is disconnected");
+    return Utils.makeResponse(res, 403, "Driver's websocket is disconnected");
   }
   await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");

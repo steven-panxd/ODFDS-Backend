@@ -285,13 +285,6 @@ paths:
                       field: phone
                       value: 4081234567
                       message: Phone number is already taken, please try another phone number
-                # Invalid latitude or longitude:
-                #   value:
-                #     code: 400
-                #     data:
-                #       field: latitude
-                #       value: ABC
-                #       message: Invalid latitude
   /restaurant/reset/emailCode:
     get:
       description: Get an email verification code for reset password of a restaurant account
@@ -557,14 +550,46 @@ paths:
           required: true
       responses:
         '200':
-          description: Succeed, return order id
+          description: return restaurant order detail
           content:
             application/json:
               schema: 
-                $ref: '#/components/schemas/GeneralResponse'
-              example:
-                code: 200
-                data: order data
+                $ref: '#/components/schemas/RestaurantOrderDetail'
+        '400':
+          description: invalid parameters
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                  Empty order id:
+                    value:
+                      code: 400
+                      data:
+                        field: orderId
+                        value: null
+                        message: Please input order id
+                  Invalid order id:
+                    value:
+                      code: 400
+                      data:
+                        field: orderId
+                        value: abc
+                        message: Invalid order id
+                  Order does not exist:
+                    value:
+                      code: 400
+                      data:
+                        field: orderId
+                        value: 1
+                        message: Order does not exist
+                  Order does not belong to this restaurant:
+                    value:
+                      code: 400
+                      data:
+                        field: orderId
+                        value: 1
+                        message: This is not your order
     post:
       description: create a delivery order
       tags:
@@ -1062,12 +1087,12 @@ paths:
               example:
                 code: 401
                 data: Please log in
-  /driver/location:
-    post:
-      description: Update driver's real-time location when they want to recive new orders
+  /driver/order/accept:
+    get:
+      description: Driver accepts a status = ASSIGNED order
       tags:
       - Driver
-      summary: Update driver's real-time location
+      summary: Driver accepts an order
       parameters:
       - in: header
         name: access_token
@@ -1076,42 +1101,50 @@ paths:
           description: driver access token
           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
         required: true
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateDriverLocationRequest'
+      - in: query
+        name: orderId
+        schema: 
+          type: string
+          example: 1
+        required: true
       responses:
         '200':
-          description: Email code sent
+          description: Succeed
           content:
             application/json:
               schema: 
                 $ref: '#/components/schemas/GeneralResponse'
               example:
                 code: 200
-                data: succeed
+                data: Succeed
         '400':
-          description: Invalid parameters
+          description: Invalid email address
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GeneralInvalidResponse'
               examples:
-                Invalid latitude:
+                Order does not exist:
                   value:
                     code: 400
                     data:
-                      field: latitude
-                      value: abc
-                      message: invalid latitude
-                Invalid longitude:
+                      field: orderId
+                      value: 1
+                      message: Order does not exist
+                Order does not belong to this driver:
                   value:
                     code: 400
                     data:
-                      field: longitude
-                      value: abc
-                      message: Invalid longitude
+                      field: orderId
+                      value: 1
+                      message: This is not your order
+                Order status is not ASSIGNED:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Invalid order status = CANCELLED
         '401':
           description: Unauthorized
           content:
@@ -1121,11 +1154,21 @@ paths:
               example:
                 code: 401
                 data: Please log in
-    delete:
-      description: Delete driver's real-time location when they don't want to recive new orders
+        '403':
+          description: Driver's websocket disconnected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 403
+                data: Driver's websocket disconnected
+  /driver/order/reject:
+    get:
+      description: Driver rejects a status = ASSIGNED order
       tags:
       - Driver
-      summary: Delete driver's real-time location
+      summary: Driver rejects an order
       parameters:
       - in: header
         name: access_token
@@ -1134,16 +1177,50 @@ paths:
           description: driver access token
           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
         required: true
+      - in: query
+        name: orderId
+        schema: 
+          type: string
+          example: 1
+        required: true
       responses:
         '200':
-          description: Email code sent
+          description: Succeed
           content:
             application/json:
               schema: 
                 $ref: '#/components/schemas/GeneralResponse'
               example:
                 code: 200
-                data: succeed
+                data: Succeed
+        '400':
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Order does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Order does not exist
+                Order does not belong to this driver:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: This is not your order
+                Order status is not ASSIGNED:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Invalid order status = CANCELLED
         '401':
           description: Unauthorized
           content:
@@ -1153,6 +1230,167 @@ paths:
               example:
                 code: 401
                 data: Please log in
+        '403':
+          description: Driver's websocket disconnected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 403
+                data: Driver's websocket disconnected
+  /driver/order/pickup:
+    get:
+      description: Driver picks up a status = ACCEPTED order
+      tags:
+      - Driver
+      summary: Driver picks up an order
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: driver access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      - in: query
+        name: orderId
+        schema: 
+          type: string
+          example: 1
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Succeed
+        '400':
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Order does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Order does not exist
+                Order does not belong to this driver:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: This is not your order
+                Order status is not ASSIGNED:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Invalid order status = CANCELLED
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+        '403':
+          description: Driver's websocket disconnected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 403
+                data: Driver's websocket disconnected
+  /driver/order/deliver:
+    get:
+      description: Driver delivers a status = PICKEDUP order
+      tags:
+      - Driver
+      summary: Driver delivers an order
+      parameters:
+      - in: header
+        name: access_token
+        schema:
+          type: string
+          description: driver access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        required: true
+      - in: query
+        name: orderId
+        schema: 
+          type: string
+          example: 1
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: Succeed
+        '400':
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                Order does not exist:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Order does not exist
+                Order does not belong to this driver:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: This is not your order
+                Order status is not ASSIGNED:
+                  value:
+                    code: 400
+                    data:
+                      field: orderId
+                      value: 1
+                      message: Invalid order status = CANCELLED
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
+        '403':
+          description: Driver's websocket disconnected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 403
+                data: Driver's websocket disconnected
   /common/upload/image:
     post:
       description: upload an image to the server
@@ -1203,7 +1441,7 @@ paths:
 components:
   schemas:
     GeneralResponse:
-      title: General valid response body
+      description: General valid response body
       type: object
       properties:
         code:
@@ -1215,7 +1453,7 @@ components:
           description: response data or succeed message
           example: succeed
     GeneralInvalidResponse:
-      title: General invalid parameter response body
+      description: General invalid parameter response body
       type: object
       properties:
         code:
@@ -1239,7 +1477,7 @@ components:
             value: abc.com
             message: Invalid email address
     GetRestaurantProfileResponse:
-      title: Restaurant profile response body
+      description: Restaurant profile response body
       type: object
       properties:
         code:
@@ -1285,16 +1523,8 @@ components:
               type: string
               description: restaurant verification status
               example: NOTVERIFIED
-            # latitude:
-            #   type: number
-            #   description: restaurant latitude
-            #   example: 37.33482353097262
-            # longitude:
-            #   type: number
-            #   description: restaurant longitude
-            #   example: -121.88420310757643
     UpdateRestaurantProfileRequest:
-      title: Restaurant account profile update request body
+      description: Restaurant account profile update request body
       type: object
       properties:
         phone:
@@ -1321,16 +1551,8 @@ components:
           type: string
           description: restaurant zipCode
           example: 95192
-        # latitude:
-        #   type: number
-        #   description: restaurant latitude
-        #   example: 37.33482353097262
-        # longitude:
-        #   type: number
-        #   description: restaurant longitude
-        #   example: -121.88420310757643
     RestaurantLoginRequest:
-      title: Restaurant account log in request body
+      description: Restaurant account log in request body
       type: object
       properties:
         email:
@@ -1342,7 +1564,7 @@ components:
           description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
           example: A1b2c.
     RestaurantSignUpRequest:
-      title: Restaurant account sign up request body
+      description: Restaurant account sign up request body
       type: object
       properties:
         email:
@@ -1381,14 +1603,6 @@ components:
           type: string
           description: restaurant zipCode
           example: 95192
-        # latitude:
-        #   type: number
-        #   description: restaurant latitude
-        #   example: 37.33482353097262
-        # longitude:
-        #   type: number
-        #   description: restaurant longitude
-        #   example: -121.88420310757643
       required:
         - email
         - code
@@ -1398,10 +1612,8 @@ components:
         - street
         - state
         - zipCode
-        # - latitude
-        # - longitude
     DriverLoginRequest:
-      title: Driver account log in request body
+      description: Driver account log in request body
       type: object
       properties:
         email:
@@ -1413,7 +1625,7 @@ components:
           description: password, much be length >= 6, at least 1 uppercase letter, 1 lowercase letter, and 1 symbol
           example: A1b2c.
     DriverSignUpRequest:
-      title: Driver account sign up request body
+      description: Driver account sign up request body
       type: object
       properties:
         email:
@@ -1472,7 +1684,7 @@ components:
         - bankAccountNumber
         - bankRoutingNumber
     GetDriverProfileResponse:
-      title: Driver profile response body
+      description: Driver profile response body
       type: object
       properties:
         code:
@@ -1527,7 +1739,7 @@ components:
               description: restaurant verification status
               example: NOTVERIFIED
     UpdateDriverProfileRequest:
-      title: Driver account profile update request body
+      description: Driver account profile update request body
       type: object
       properties:
         phone:
@@ -1563,7 +1775,7 @@ components:
           description: driver's bank routing number
           example: 123456789
     ResetPasswordRequest:
-      title: Restaurant/Driver account reset password request body
+      description: Restaurant/Driver account reset password request body
       type: object
       properties:
         email:
@@ -1583,7 +1795,7 @@ components:
       - code
       - password
     GetRestaurantOrdersResponse:
-      title: Restaurant history orders response body
+      description: Restaurant history orders response body
       type: object
       properties:
         code:
@@ -1676,8 +1888,114 @@ components:
             phone:
               type: string
               example: "4081234567"
+    RestaurantOrderDetail:
+      description: restaurant get order detail
+      type: object
+      properties:
+        id: 
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        estimatedDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        estimatedDeliveryCost:
+          type: string
+          example: "50.25"
+        actualDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        actualDeliveryCost:
+          type: string
+          example: "50.25"
+        status:
+          type: string
+          example: ACCEPTED
+        customerStreet: 
+          type: string
+          example: "One Apple Park Way"
+        customerCity: 
+          type: string
+          example: "Cupertino"
+        customerState:
+          type: string
+          example: "CA"
+        customerZipCode:
+          type: string
+          example: "95014"
+        customerName:
+          type: string
+          example: "Tim Cook"
+        customerEmail:
+          type: string
+          example: "xd.cs157c@gmail.com"
+        customerPhone:
+          type: string
+          example: "6691234567"
+        restaurant:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            email:
+              type: string
+              example: steven.panxd@gmail.com
+            phone:
+              type: string
+              example: 4081234567
+            name:
+              type: string
+              example: McDonalds
+            verification: 
+              type: string
+              example: NOTVERIFIED
+            street:
+              type: string
+              example: 1 Washington Square
+            city:
+              type: string
+              example: San Jose
+            state:
+              type: string
+              example: CA
+            zipCode:
+              type: string
+              example: 95192
+            stripeCustomerId:
+              type: string
+              example: cus_NhF8CZNw3XbyT9
+        driver:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            firstName:
+              type: string
+              example: Steven
+            lastName:
+              type: string
+              example: Pan
+            middleName:
+              type: string
+              example: null
+            email:
+              type: string
+              example: stevenxpan@yahoo.com
+            phone:
+              type: string
+              example: "4081234567"
+            latitude:
+              type: number
+              example: 37.337488971455045
+            longitude:
+              type: number
+              example: -121.88070050242536
     GetDriverOrdersResponse:
-      title: Driver history orders response body
+      description: Driver history orders response body
       type: object
       properties:
         code:
@@ -1776,21 +2094,8 @@ components:
             zipCode:
               type: string
               example: "95192"
-    UpdateDriverLocationRequest:
-      title: Driver real time location update request body
-      type: object
-      properties:
-        latitude:
-          type: number
-          example: 37.33539903922244
-        longitude:
-          type: number
-          example: -121.8806361280556
-      required:
-        - latitude
-        - longitude
     RestaurantEstimateRequest:
-      title: distance and duration estimation between restaurant and customer request
+      description: distance and duration estimation between restaurant and customer request
       type: object
       properties:
         street:
@@ -1811,7 +2116,7 @@ components:
         - state
         - zipCode
     RestaurantCreateOrderRequest:
-      title: restaurant create order request
+      description: restaurant create order request
       type: object
       properties:
         customerStreet:
