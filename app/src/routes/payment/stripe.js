@@ -1,10 +1,10 @@
-var express = require('express')
-var router = express.Router()
+var express = require('express');
+var router = express.Router();
 var StripeWrapper = require('./../../stripe/StripeWrapper');
-var Utils = require('./../../utills')
+var Utils = require('./../../utills');
 
-var { PrismaClient } = require('@prisma/client');
-const db = new PrismaClient()
+var { PrismaClient, OrderStatus } = require('@prisma/client');
+const db = new PrismaClient();
 
 //create setup intent
 router.post('/create_setup_intent', Utils.restaurantLoginRequired, (req, res) => {
@@ -103,16 +103,26 @@ router.post('/driver/update', Utils.driverLoginRequired, (req, res) => {
 })
 
 //create payment intent
-//body.amountCents - the amount in USD cents to be charged
+//body.orderId - the amount in USD cents to be charged
 //body.paymentMethodId - the ID of the stripe payment method being used for this transaction
-router.post('/payment_intent', Utils.restaurantLoginRequired, (req, res) => {
-    StripeWrapper.createPaymentIntent(req.user, req.body.amountCents, req.body.paymentMethodId).then(
+router.post('/payment_intent', Utils.restaurantLoginRequired, async (req, res) => {
+    var order = await db.deliveryOrder.findUnique({where: {id: req.body.orderId}})
+    StripeWrapper.createPaymentIntent(req.user, order.estimatedDeliveryCost * 100, req.body.paymentMethodId).then(
         (result) => {
             Utils.makeResponse(res, 200, result)
         }
     ).catch(
-        (error) => {
-            console.log(error)
+        async (error) => {
+            //payment was unsuccesful, so order should be cancelled
+            await db.deliveryOrder.update(
+                {where: {
+                    id: req.body.orderId
+                },
+                data: {
+                    orderStatus: OrderStatus.CANCELLED,
+                    stripeTransferId: result.id
+                }
+            })
             Utils.makeResponse(res, error.raw.statusCode, error)
         }
     )
@@ -126,15 +136,42 @@ router.get('/payment_intent', (req, res) => {
         }
     ).catch(
         (error) => {
-            console.log(error)
             Utils.makeResponse(res, error.raw.statusCode, error)
         }
     )
 })
 
-router.post('/transfer_funds', Utils.driverLoginRequired, (req, res) => {
+//req.body.orderId - the id of the order that is being paid
+router.post('/pay_order', Utils.driverLoginRequired, async (req, res) => {
+    //get order from db
+    var order = await db.deliveryOrder.findUnique({where: {id: req.body.orderId}})
+    //make sure driver is the one assigned to it
+    if(order.driverId !== req.user.id){
+        Utils.makeResponse(res, 400, "Unable to claim payment for this order.")
+        return
+    }
+    //make sure order has not already been paid
+    if(order.orderStatus === OrderStatus.DRIVER_PAID){
+        Utils.makeResponse(res, 400, "Order payment has already been claimed.")
+        return
+    }
+    //check that order status is "DELIVERED"
+    if(order.orderStatus !== OrderStatus.DELIVERED){
+        Utils.makeResponse(res, 400, "Delivery must be completed.")
+        return
+    }
+    //pay order
     StripeWrapper.transferFunds(req.body.amountCents, req.user.stripeAccountId).then(
-        (result) => {
+        async (result) => {
+            await db.deliveryOrder.update(
+                {where: {
+                    id: req.body.orderId
+                },
+                data: {
+                    orderStatus: OrderStatus.DRIVER_PAID,
+                    stripeTransferId: result.id
+                }
+            })
             Utils.makeResponse(res, 200, result)
         }
     ).catch(
