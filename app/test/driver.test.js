@@ -7,11 +7,11 @@ var app = require("../app");
 
 var request = supertest.agent(app).set("Accept", "application/json");  // set default request headers
 
-describe('Restaurant Sign Up Email Verification Code', function() {
+describe('Driver Sign Up Email Verification Code', function() {
 
     it('Empty email address', (done) => {
         // arrange
-        const url = "/restaurant/emailCode";
+        const url = "/driver/emailCode";
         const contentType = /application\/json/;
         const statusCode = 400;
         const data = {
@@ -36,7 +36,7 @@ describe('Restaurant Sign Up Email Verification Code', function() {
 
     it('Invalid email address', (done) => {
         // arrange
-        const url = "/restaurant/emailCode?email=abc";
+        const url = "/driver/emailCode?email=abc";
         const contentType = /application\/json/;
         const statusCode = 400;
         const data = {

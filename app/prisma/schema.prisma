@@ -13,26 +13,11 @@ enum Verification {
   NOTPASSED
 }
 
-//enum CardType {
-//  VISA
-//  MASTERCARD
-//  DISCOVER
-//  AMEX
-//}
-
-enum PaymentStatus {
-  PENDING
-  POSTED
-  PAYING
-  PAID
-  REFUNDING
-  REFUNDED
-}
-
 enum OrderStatus {
   CREATED
   PAID_FOR
   ASSIGNED
+  ACCEPTED
   PICKEDUP
   DELIVERED
   DRIVER_PAID

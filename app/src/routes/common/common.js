@@ -3,7 +3,7 @@ var router = express.Router();
 var fs = require('fs');
 
 var uploadedImage = require('../../../mongoose/schema/uploadedImage'); 
-var Utils = require('../../utills');
+var Utils = require('../../utils');
 
 const fileUpload = require('express-fileupload');
 router.use(fileUpload({

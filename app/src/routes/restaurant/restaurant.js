@@ -9,16 +9,17 @@ var { getRestaurantEmailCodeValidator,
       deleteRestaurantAccountValidator,
       getRestaurantOrdersValidator,
       postDeliveryOrderValidator,
-      getEstimatedValidator
+      getEstimatedValidator,
+      getOrderDetailValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
 var StripeWrapper = require('./../../stripe/StripeWrapper');
 
-var Utils = require('../../utills');
+var Utils = require('../../utils');
 
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 
@@ -185,8 +186,28 @@ router.patch('/reset/password', postRestaurantResetPasswordValidator, async func
   Utils.makeResponse(res, 200, "Succeed");
 });
 
+// calculate estimated order price and delivery time?
+router.post('/order/estimate', Utils.restaurantLoginRequired, getEstimatedValidator, async function(req, res) {
+  const street = req.body.street;
+  const city = req.body.city;
+  const state = req.body.state;
+  const zipCode = req.body.zipCode;
+
+  const originAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
+  const destAddr = street + ", " + city + ", " + state + ", " + zipCode;
+
+  const result = await Utils.calculateDistance(originAddr, destAddr);
+  const estimatedPrice = Utils.calculatePrice(result.distance)
+
+  Utils.makeResponse(res, 200, {
+    estimatedDistanceInMeters: result.distance,
+    estimatedDurationInSeconds: result.duration,
+    estimatedPriceInDollars: estimatedPrice
+  });
+});
+
 // get restaurant order history
-router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequired, async function(req, res) {
+router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidator, async function(req, res) {
   const page = req.query.page;
   const pageSize = req.query.pageSize;
 
@@ -224,7 +245,7 @@ router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequire
     skip: skip,
     take: pageSize,
   });
-
+  
   // remove foreign key fields
   let cleanData = [];
   rawData.forEach((model) => {
@@ -239,71 +260,87 @@ router.get('/orders', getRestaurantOrdersValidator, Utils.restaurantLoginRequire
   });
 });
 
-// calculate estimated order price and delivery time?
-router.post('/order/estimate', getEstimatedValidator, Utils.restaurantLoginRequired, async function(req, res) {
-  const street = req.body.street;
-  const city = req.body.city;
-  const state = req.body.state;
-  const zipCode = req.body.zipCode;
-
-  const originAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
-  const destAddr = street + ", " + city + ", " + state + ", " + zipCode;
-
-  const result = await Utils.calculateDistance(originAddr, destAddr);
-
-  Utils.makeResponse(res, 200, {
-    estimatedDistanceInMeters: result.distance,
-    estimatedDurationInSeconds: result.duration
-  });
-});
-
-router.get("/order/cloestDriver", Utils.restaurantLoginRequired, async function(req, res) {
-  const nearestDriver = await Utils.findNearestDriver(req);
-  
-  if (!nearestDriver) {
-    return Utils.makeResponse(res, 400, "No avaliable drivers");
+// get order detail information by order id
+router.get("/order", Utils.restaurantLoginRequired, getOrderDetailValidator, async function(req, res) {
+  // if the order is delivered or the driver hasn't accepted it
+  req.order.restaurant = req.user;
+  if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED || req.order.status == OrderStatus.ASSIGNED) {
+    return Utils.makeResponse(res, 200, req.order);
   }
 
-  Utils.makeResponse(res, 200, nearestDriver.email);
-});
-
-router.get("/order/cloestDriverWs", Utils.restaurantLoginRequired, async function(req, res) {
-  const nearestDriver = await Utils.findNearestDriver(req);
-  
-  if (!nearestDriver) {
-    return Utils.makeResponse(res, 400, "No avaliable drivers");
-  }
-
-  const wsClients = req.app.get("wsClients");
-  const ws = wsClients.get(nearestDriver.id);
-
-
-  Utils.makeWsResponse(ws, 200, req.user);
-
-  Utils.makeResponse(res, 200, nearestDriver.email);
+  // if the order is not delivered, append driver's current location to the return info
+  const driverOnRouteLocation = await Utils.getDriverOnRouteLocation(req.order.driver.id);
+  req.order.driver.latitude = driverOnRouteLocation.latitude;
+  req.order.driver.longitude = driverOnRouteLocation.longitude;
+  return Utils.makeResponse(res, 200, req.order);
 });
 
 // create a new order, need assign the order to a driver?
 router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired, async function(req, res) {
-  // await db.deliveryOrder.create({
-  //   data: {
-  //     estimatedDeliveryCost: 100,
-  //     estimatedDeliveryTime: new Date(),
-  //     actualDeliveryCost: 100,
-  //     actualDeliveryTime: new Date(),
-  //     customerStreet: "One Apple Park Way",
-  //     customerCity: "San Jose",
-  //     customerState: "CA",
-  //     customerZipCode: "95112",
-  //     customerName: "Tim Cook",
-  //     customerEmail: "tim.cook@apple.com",
-  //     customerPhone: "4081234567",
-  //     restaurantId: 1,
-  //     driverId: 1,
-  //     transactionId: 1
-  //   }
-  // })
-  Utils.makeResponse(res, 200, "OK");
+  const customerAddr = req.body.customerStreet + ", " + req.body.customerCity + ", " + req.body.customerState + ", " + req.body.customerZipCode;
+  const restaurantAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
+  
+  // find nearest driver
+  const nearestDriver = await Utils.findNearestDriver(req.user, []);
+  if (!nearestDriver) {
+    return Utils.makeResponse(res, 404, "No avaliable drivers online");
+  }
+  const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
+
+  const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
+  const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
+  if (!(result1.duration && result2.duration)) {  // if there is no route between them, drivers are too far from the restaurant
+    return Utils.makeResponse(res, 404, "No avaliable drivers near you");
+  }
+
+  // calculate estimated delivery time and price
+  const estimatedCost = Utils.calculatePrice(result2.distance);
+  // estimatedDeliveryTime = Now + time the driver need to go to the restaurant + time the driver need to deliver the order from restaurant to customer
+  const estimatedDeliveryTime = new Date(new Date().getTime() + (result1.duration + result2.duration) * 1000);
+
+  const order = await db.deliveryOrder.create({
+    data: {
+      estimatedDeliveryCost: estimatedCost,
+      estimatedDeliveryTime: estimatedDeliveryTime,
+      customerStreet: req.body.customerStreet,
+      customerCity: req.body.customerCity,
+      customerState: req.body.customerState,
+      customerZipCode: req.body.customerZipCode,
+      customerName: req.body.customerName,
+      customerEmail: req.body.customerEmail,
+      customerPhone: req.body.customerPhone,
+      restaurantId: req.user.id,
+      driverId: nearestDriver.id,
+      comment: req.body.comment,
+      status: OrderStatus.ASSIGNED
+    },
+    include: {
+      restaurant: {
+        select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+        }
+      }
+    }
+  });
+  
+  const driverWsClient = Utils.getDriverWsClient(req, nearestDriver.id);
+  await Utils.assignPendingAcceptanceOrderToDriver(req, driverWsClient, nearestDriver.id, order);
+
+
+  // send tracking token to customer by email
+  await Utils.sendEmail(req.body.customerEmail, "To Customer: Information for your order #" + order.id, "<h2> Your order tracking token: " + Utils.generateCustomerToken(order.id) + "</h2>");
+
+  Utils.makeResponse(res, 200, {
+    message: "Order created",
+    orderId: order.id
+  });
 });
 
 

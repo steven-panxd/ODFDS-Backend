@@ -8,16 +8,19 @@ var { getDriverEmailCodeValidator,
       postDriverResetPasswordValidator,
       deleteDriverAccountValidator,
       getDriverOrdersValidator,
-      updateLocationValidator
+      driverPickUpOrderValidator,
+      driverDeliverOrderValidator,
+      driverAcceptOrRejectOrderValidator,
+      getOrderDetailValidator
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
 var StripeWrapper = require('./../../stripe/StripeWrapper');
 
-var Utils = require('../../utills');
+var Utils = require('../../utils');
 
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 // get driver account sign up email verification code
@@ -160,7 +163,7 @@ router.patch('/reset/password', postDriverResetPasswordValidator, async function
 });
 
 // get driver order history
-router.get('/orders', getDriverOrdersValidator, Utils.driverLoginRequired, async function(req, res) {
+router.get('/orders', Utils.driverLoginRequired, getDriverOrdersValidator, async function(req, res) {
   const page = req.query.page;
   const pageSize = req.query.pageSize;
 
@@ -215,51 +218,66 @@ router.get('/orders', getDriverOrdersValidator, Utils.driverLoginRequired, async
   });
 });
 
-// driver update their current location function
-router.post('/location', updateLocationValidator, Utils.driverLoginRequired, async function(req, res) {
-  const lat = req.body.latitude;
-  const longt = req.body.longitude;
+// router.get("/order", Utils.driverLoginRequired, getOrderDetailValidator, async function(req, res) {
+//   Utils.makeResponse(res, 200, req.order);
+// });
 
-  await driverLocation.findOneAndUpdate({
-    driverId: req.user.id
-  }, {
-    location: {
-      type: "Point",
-      coordinates: [longt, lat]
-    }
-  }, { upsert: true });
-
+router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
+  }
+  await Utils.driverAcceptOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
-// driver delete location reports
-router.delete('/location', Utils.driverLoginRequired, async function(req, res) {
-  await driverLocation.deleteOne({
-    driverId: req.user.id
-  });
-
+router.get("/order/reject", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
+  }
+  await Utils.driverRejectOrder(req, driverWs, req.user.id, req.order);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
+router.get("/order/pickUp", Utils.driverLoginRequired, driverPickUpOrderValidator, async function(req, res) {
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
+  }
+  await Utils.driverPickUpOrder(req, driverWs, req.user.id, req.order);
+  Utils.makeResponse(res, 200, "Succeed");
+});
+
+router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValidator, async function(req, res) {
+  const driverWs = Utils.getDriverWsClient(req, req.user.id);
+  if (!driverWs) {
+    return Utils.makeResponse(res, 403, "Driver's websocket is disconnected");
+  }
+  await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
+  Utils.makeResponse(res, 200, "Succeed");
+});
 
 // bug, reference: https://github.com/trasherdk/express-ws-original/issues/2
 // client need to wait a little bit to send the first message after connectted to the websocket
-router.ws('/locationWebsocket', async function(ws, req) {
-  // store all driver websocket connections
-  // { driverId: websocketClientInstance }
-  let clients = req.app.get("wsClients");
-
+router.ws('/location', async function(ws, req) {
   // authenticate user by accessToken in request
   await Utils.driverloginRequiredWs(req, ws);
-  // close the websocket if authentication failed
+  
+  // close the websocket if driver authentication failed
   if (!req.user) {
-    return ws.close();  // this goes to ws.on("close", () => {})
+    return ws.close();
   }
 
-  var sendMessageError = false;
+  console.log("Hello " + req.user.email);
+
+  // if the driver status
+  await Utils.checkDriverStatus(req, ws, req.user.id);
 
   // when server receives a message from the client (frontend)
   ws.on('message', async function message(msg) {
+    var sendMessageError = false;
+
     // validate if the message received is a json string
     if (!Utils.isJSON(msg)) {
       sendMessageError = true;
@@ -300,38 +318,40 @@ router.ws('/locationWebsocket', async function(ws, req) {
       sendMessageError = true;
       return Utils.makeWsResponse(ws, 400, "Invalid longitude");
     }
-    
-    // update driver location on MongoDB database
-    await driverLocation.findOneAndUpdate({
-      driverId: req.user.id
-    }, {
-      location: {
-        type: "Point",
-        coordinates: [longitude, latitude]
-      }
-    }, { upsert: true });
 
-    // if this is the first correctly update location request, store the client websocket instance for future use (sever may wanna send message to client)
-    if(!clients.has(req.user.id)) {
-      clients.set(req.user.id, ws);
-    }
-
+    // if error happened on the data received, return
     if (sendMessageError) {
       return;
     }
 
-    Utils.makeWsResponse(ws, 201, "Succeed");
+    // if the driver has pending orders, save location information to driverOnRoute collection
+    // otherwise, update location information to driverLocation collection
+    await Utils.updateDriverLocation(ws, req.user.id, latitude, longitude);
+
+    // if this is the first correctly update location request, store the client websocket instance for future use (sever may wanna send message to client)
+    Utils.setDriverWsClient(req, req.user.id, ws);
   });
 
   // when client (frontend) disconnect with the server
   ws.on('close', async function close(code, reason) {
     if (req.user) {
-      // delete the location info on mongoDB database when disconnected
-      await driverLocation.deleteOne({
-        driverId: req.user.id
-      });
+      if (ws.driverStatus == Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE) {
+        // do something if there is a pending acceptance order for the driver (reassignment)
+        const order = await db.deliveryOrder.findFirst({
+          where: {
+            driverId: req.user.id,
+            status: OrderStatus.ASSIGNED
+          }
+        });
+        await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
+      } else if (ws.driverStatus == Utils.DriverStatus.WAITTING_ORDER) {
+        // delete the location info on mongoDB database when disconnected
+        await driverLocation.deleteMany({
+          driverId: req.user.id
+        });
+      }
       // delete the stored client websocket instance when disconnected
-      clients.delete(req.user.id);
+      Utils.removeDriverWsClient(req, req.user.id);
       console.log("see you " + req.user.email);
     } else {
       console.log("see you");

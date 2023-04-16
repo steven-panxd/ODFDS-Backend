@@ -12,7 +12,8 @@ var restaurantRouter = require("./src/routes/restaurant/restaurant");
 var driverRouter = require('./src/routes/driver/driver');
 var commonRouter = require('./src/routes/common/common');
 var paymentRouter = require('./src/routes/payment/stripe');
-const Utils = require('./src/utills');
+var customerRouter = require("./src/routes/customer/customer");
+const Utils = require('./src/utils');
 
 var app = express();
 
@@ -38,9 +39,12 @@ app.use('/restaurant', restaurantRouter);
 app.use('/driver', driverRouter);
 app.use('/common', commonRouter);
 app.use('/payment', paymentRouter);
+app.use('/customer', customerRouter);
 
 // initiate a place to store all client websocket instances
-app.set("wsClients", new Map());
+// store all driver websocket connections
+// { driverId: websocketClientInstance }
+app.set('wsDriverClients', new Map());
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -50,6 +54,7 @@ app.use((err, req, res, next) => {
     }
     // otherwise, return detailed error message
     Utils.makeResponse(res, 500, err.message.trim());
+    console.log(err.stack);
 });
 
 module.exports = app;

@@ -13,8 +13,11 @@ if (process.env.MONGO_DB_USER && process.env.MONGO_DB_PASSWORD) {
   MONGO_DB_URI = `mongodb://${process.env.MONGO_DB_HOST}:${process.env.MONGO_DB_DOCKER_PORT}/`;
 }
 
-mongoose.connect(MONGO_DB_URI).then(_ => {
+mongoose.connect(MONGO_DB_URI).then(async _ => {
   console.log('Connected to MongoDB');
+  var driverLocation = require("../mongoose/schema/driverLocation");
+  // clean up mongoose database once start
+  await driverLocation.deleteMany({});
 }).catch(error => {
   console.log(error.message);
   process.exit(1);
