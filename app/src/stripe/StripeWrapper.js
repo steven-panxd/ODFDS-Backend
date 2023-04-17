@@ -118,6 +118,33 @@ class StripeWrapper{
     }
 
     //make payment intent
+    static async createPaymentIntent(profileData, amountCents, paymentMethodId){
+        return await stripe.paymentIntents.create({
+            amount: amountCents,
+            currency: 'usd',
+            payment_method_types: ['card', 'us_bank_account'],
+            customer: profileData.stripeCustomerId,
+            payment_method: paymentMethodId,
+            receipt_email: profileData.email,
+            confirm: true
+        })
+    }
+
+    static async retreivePaymentIntent(intentId){
+        return await stripe.paymentIntents.retrieve(intentId)
+    }
+
+    static async transferFunds(amountCents, driverAccountId){
+        return await stripe.transfers.create({
+            amount: amountCents,
+            currency: 'usd',
+            destination: driverAccountId
+        })
+    }
+
+    static async retrieveTransfer(transferId){
+        return await stripe.transfers.retrieve(transferId)
+    }
 }
 
 module.exports = StripeWrapper

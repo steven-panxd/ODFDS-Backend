@@ -15,7 +15,7 @@ var { getRestaurantEmailCodeValidator,
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
-var StripeWrapper = require('./../../payment/StripeWrapper');
+var StripeWrapper = require('./../../stripe/StripeWrapper');
 
 var Utils = require('../../utils');
 
