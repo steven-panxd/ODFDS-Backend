@@ -141,6 +141,10 @@ class StripeWrapper{
             destination: driverAccountId
         })
     }
+
+    static async retrieveTransfer(transferId){
+        return await stripe.transfers.retrieve(transferId)
+    }
 }
 
 module.exports = StripeWrapper

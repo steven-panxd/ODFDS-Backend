@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var StripeWrapper = require('./../../stripe/StripeWrapper');
-var Utils = require('./../../utills');
+var Utils = require('./../../utils');
 
 var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient();
@@ -106,9 +106,21 @@ router.post('/driver/update', Utils.driverLoginRequired, (req, res) => {
 //body.orderId - the amount in USD cents to be charged
 //body.paymentMethodId - the ID of the stripe payment method being used for this transaction
 router.post('/payment_intent', Utils.restaurantLoginRequired, async (req, res) => {
+    //get order from db
     var order = await db.deliveryOrder.findUnique({where: {id: req.body.orderId}})
+    //check order status before paying
+    if (order.orderStatus !== OrderStatus.CREATED){
+        Utils.makeResponse(res, 400, "Order has already been paid for.")
+    }
     StripeWrapper.createPaymentIntent(req.user, order.estimatedDeliveryCost * 100, req.body.paymentMethodId).then(
         (result) => {
+            switch(result.status){
+                case 'succeeded':
+                    break
+                default:
+                    Utils.makeResponse(res, 400, "Payment failed.")
+                    return
+            }
             Utils.makeResponse(res, 200, result)
         }
     ).catch(
@@ -157,11 +169,11 @@ router.post('/pay_order', Utils.driverLoginRequired, async (req, res) => {
     }
     //check that order status is "DELIVERED"
     if(order.orderStatus !== OrderStatus.DELIVERED){
-        Utils.makeResponse(res, 400, "Delivery must be completed.")
+        Utils.makeResponse(res, 400, "Order must have status DELIVERED.")
         return
     }
     //pay order
-    StripeWrapper.transferFunds(req.body.amountCents, req.user.stripeAccountId).then(
+    StripeWrapper.transferFunds(order.estimatedDeliveryCost*100, req.user.stripeAccountId).then(
         async (result) => {
             await db.deliveryOrder.update(
                 {where: {
@@ -177,6 +189,19 @@ router.post('/pay_order', Utils.driverLoginRequired, async (req, res) => {
     ).catch(
         (error) => {
             console.log(error)
+            Utils.makeResponse(res, error.raw.statusCode, error)
+        }
+    )
+})
+
+//query.transferId - the ID of the strip transfer to get
+router.get('/transfer', Utils.driverLoginRequired, (req, res) => {
+    StripeWrapper.retrieveTransfer(req.query.transferId).then(
+        (result) => {
+            Utils.makeResponse(res, 200, result)
+        }
+    ).catch(
+        (error) => {
             Utils.makeResponse(res, error.raw.statusCode, error)
         }
     )
