@@ -1,7 +1,7 @@
 var { body, param, query } = require('express-validator');
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 var Utils = require('../../utils');
@@ -159,6 +159,29 @@ const postDeliveryOrderValidator = [
   Utils.validate
 ]
 
+const postPayDeliveryOrderValidator = [
+  body("orderId").exists({ checkFalsy: true }).withMessage("please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+    //get order from db
+    var order = await db.deliveryOrder.findUnique({where: {id: value}})
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+
+    if (order.restaurantId != req.user.id) {
+      return Promise.reject("This is not your order");
+    }
+
+    //check order status before paying
+    if (order.status != OrderStatus.CREATED){
+      return Promise.reject("Invalid order status = " + order.status);
+    }
+
+    req.order = order;
+  }),
+  body("paymentMethodId").exists({ checkFalsy: true }).withMessage("please input stripe payment method id"),
+  Utils.validate
+]
+
 const getOrderDetailValidator = [
   query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
     const order = await db.deliveryOrder.findUnique({
@@ -205,5 +228,6 @@ module.exports = {
     getRestaurantOrdersValidator,
     getEstimatedValidator,
     postDeliveryOrderValidator,
-    getOrderDetailValidator
+    getOrderDetailValidator,
+    postPayDeliveryOrderValidator
 };

@@ -10,12 +10,13 @@ var { getRestaurantEmailCodeValidator,
       getRestaurantOrdersValidator,
       postDeliveryOrderValidator,
       getEstimatedValidator,
-      getOrderDetailValidator
+      getOrderDetailValidator,
+      postPayDeliveryOrderValidator
     } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
 
-var StripeWrapper = require('./../../payment/StripeWrapper');
+var StripeWrapper = require('./../../stripe/StripeWrapper');
 
 var Utils = require('../../utils');
 
@@ -275,33 +276,22 @@ router.get("/order", Utils.restaurantLoginRequired, getOrderDetailValidator, asy
   return Utils.makeResponse(res, 200, req.order);
 });
 
-// create a new order, need assign the order to a driver?
-router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired, async function(req, res) {
+// create a new order, have not assign the order to a driver
+router.post('/order', Utils.restaurantLoginRequired, postDeliveryOrderValidator, async function(req, res) {
   const customerAddr = req.body.customerStreet + ", " + req.body.customerCity + ", " + req.body.customerState + ", " + req.body.customerZipCode;
   const restaurantAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
   
-  // find nearest driver
-  const nearestDriver = await Utils.findNearestDriver(req.user, []);
-  if (!nearestDriver) {
-    return Utils.makeResponse(res, 404, "No avaliable drivers online");
-  }
-  const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
-
-  const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
-  const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
-  if (!(result1.duration && result2.duration)) {  // if there is no route between them, drivers are too far from the restaurant
-    return Utils.makeResponse(res, 404, "No avaliable drivers near you");
+  const result = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
+  if (!result.duration) {  // if there is no route between them, customer is too far from the restaurant
+    return Utils.makeResponse(res, 404, "No route between restaurant and customer");
   }
 
-  // calculate estimated delivery time and price
-  const estimatedCost = Utils.calculatePrice(result2.distance);
-  // estimatedDeliveryTime = Now + time the driver need to go to the restaurant + time the driver need to deliver the order from restaurant to customer
-  const estimatedDeliveryTime = new Date(new Date().getTime() + (result1.duration + result2.duration) * 1000);
+  // calculate delivery time and price
+  const cost = Utils.calculatePrice(result.distance);
 
   const order = await db.deliveryOrder.create({
     data: {
-      estimatedDeliveryCost: estimatedCost,
-      estimatedDeliveryTime: estimatedDeliveryTime,
+      cost: cost,
       customerStreet: req.body.customerStreet,
       customerCity: req.body.customerCity,
       customerState: req.body.customerState,
@@ -310,9 +300,7 @@ router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired,
       customerEmail: req.body.customerEmail,
       customerPhone: req.body.customerPhone,
       restaurantId: req.user.id,
-      driverId: nearestDriver.id,
-      comment: req.body.comment,
-      status: OrderStatus.ASSIGNED
+      comment: req.body.comment
     },
     include: {
       restaurant: {
@@ -329,16 +317,120 @@ router.post('/order', postDeliveryOrderValidator, Utils.restaurantLoginRequired,
       }
     }
   });
-  
+
+  Utils.makeResponse(res, 200, {
+    message: "Order created, pending payment",
+    orderId: order.id
+  });
+});
+
+router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderValidator, async function(req, res) {
+  const customerAddr = req.order.customerStreet + ", " + req.order.customerCity + ", " + req.order.customerState + ", " + req.order.customerZipCode;
+  const restaurantAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
+
+  // find nearest driver
+  const nearestDriver = await Utils.findNearestDriver(req.user, []);
+  // if there is no driver near the restaurant, cancel the order
+  if (!nearestDriver) {
+    await db.deliveryOrder.update({
+      where: {
+        id: req.body.orderId
+      },
+      data: {
+        status: OrderStatus.CANCELLED
+      }
+    });
+    return Utils.makeResponse(res, 404, "No avaliable drivers online, order got cancelled");
+  }
+
+  const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
+  const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
+  const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
+  if (!(result1.duration && result2.duration)) {  // if there is no route between them, drivers are too far from the restaurant, cancel the order
+    await db.deliveryOrder.update({
+      where: {
+        id: req.order.id
+      },
+      data: {
+        status: OrderStatus.CANCELLED
+      }
+    });
+    return Utils.makeResponse(res, 404, "No avaliable drivers near you, order got cancelled");
+  }
+
+  // make and process the order payment
+  let paymentResult;
+  try {
+    paymentResult = await StripeWrapper.createPaymentIntent(req.user, req.order.cost * 100, req.body.paymentMethodId);
+  } catch(stripeError) {
+    console.log(stripeError);
+    //payment was unsuccesful, so order should be cancelled
+    await db.deliveryOrder.update(
+      {where: {
+          id: req.body.orderId
+      },
+      data: {
+          status: OrderStatus.CANCELLED
+      }
+    })
+    console.log(stripeError);
+    return Utils.makeResponse(res, 404, "Stripe Error: " + stripeError.raw.message)
+  }
+  // check payment status, if not paid, cancel the order
+  if (paymentResult.status != "requires_confirmation") {
+    await db.deliveryOrder.update(
+      {where: {
+          id: req.body.orderId
+      },
+      data: {
+          status: OrderStatus.CANCELLED,
+          stripeTransferId: paymentResult.id
+      }
+    });
+    console.log(paymentResult);
+    return Utils.makeResponse(res, 404, "Payment Error: invalid payment result status = " + paymentResult.status);
+  }
+
+  // estimatedDeliveryTime = Now + time the driver need to go to the restaurant + time the driver need to deliver the order from restaurant to customer
+  const estimatedDeliveryTime = new Date(new Date().getTime() + (result1.duration + result2.duration) * 1000);
+
+  // update database
+  const order = await db.deliveryOrder.update({
+    where: {
+      id: req.body.orderId
+    },
+    data: {
+      stripePaymentIntentId: paymentResult.id,
+      driverId: nearestDriver.id,
+      estimatedDeliveryTime: estimatedDeliveryTime,
+      status: OrderStatus.ASSIGNED
+    },
+    include: {
+      restaurant: {
+        select: {
+          id: true,
+          name: true,
+          street: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          phone: true,
+          email: true
+        }
+      }
+    }
+  })
+
+  // send order to driver
   const driverWsClient = Utils.getDriverWsClient(req, nearestDriver.id);
   await Utils.assignPendingAcceptanceOrderToDriver(req, driverWsClient, nearestDriver.id, order);
 
 
   // send tracking token to customer by email
-  await Utils.sendEmail(req.body.customerEmail, "To Customer: Information for your order #" + order.id, "<h2> Your order tracking token: " + Utils.generateCustomerToken(order.id) + "</h2>");
+  await Utils.sendEmail(order.customerEmail, "To Customer: Information for your order #" + order.id, "<h2> Your order tracking token: " + Utils.generateCustomerToken(order.id) + "</h2>");
 
   Utils.makeResponse(res, 200, {
-    message: "Order created",
+    message: "Order paid",
     orderId: order.id
   });
 });

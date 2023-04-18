@@ -14,6 +14,8 @@ var driverLocation = require("../mongoose/schema/driverLocation");
 var driverOnRoute = require('../mongoose/schema/driverOnRoute');
 var orderAssignHistory = require("../mongoose/schema/orderAssignHistory");
 
+var StripeWrapper = require('./stripe/StripeWrapper');
+
 
 // some utils functions
 class Utils {
@@ -149,7 +151,7 @@ class Utils {
             return Utils.makeResponse(res, 401, "Invalid token");
         }
 
-        const id = decoded.id;
+        const id = parseInt(decoded.id);
         var order;
         order = await db.deliveryOrder.findUnique({
             where: { id: id },
@@ -712,6 +714,20 @@ class Utils {
             }
         });
 
+        // confirm payment from restaurant
+        let paymentResult;
+        try {
+            paymentResult = await StripeWrapper.confirmPaymentIntent(order.stripePaymentIntentId);
+        } catch (stripeError) {
+            console.log(stripeError);
+            throw Error("Stripe Error: " + stripeError.raw.message);
+        }
+
+        if (paymentResult.status != "succeeded") {
+            console.log(paymentResult);
+            throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
+        }
+        
         // clear all order assignment history since the order is accepted by a driver
         await orderAssignHistory.deleteMany({
             orderId: order.id
@@ -766,6 +782,14 @@ class Utils {
     }
 
     static async driverDeliverOrder(req, driverWs, driverId, order) {
+        // pay money to driver
+        let paymentResult;
+        try {
+            paymentResult = await StripeWrapper.transferFunds(order.cost * 100, req.user.stripeAccountId);
+        } catch(stripeError) {
+            throw Error(stripeError.raw.message);
+        }
+
         // find all reached coordinates after the driver accepted the order and before the driver delivered the order
         const rawTracePoints = await driverOnRoute.find({
             driverId: driverId
@@ -790,7 +814,8 @@ class Utils {
             data: {
                 status: OrderStatus.DELIVERED,
                 trace: trace,
-                actualDeliveryTime: new Date()
+                actualDeliveryTime: new Date(),
+                stripeTransferId: paymentResult.id
             },
             include: {
                 restaurant: {
@@ -838,6 +863,13 @@ class Utils {
             orderId: order.id
         });
 
+        // refund order payment from restaurant
+        try {
+            await StripeWrapper.cancelPaymentIntent(order.stripePaymentIntentId);
+        } catch (stripeError) {
+            throw Error(stripeError.raw.message);
+        }
+        
         // send email notifications to restaurant and customer
         const restaurant = await db.restaurant.findUnique({ where: { id: order.restaurantId } });
         await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to driver shortage.</h2>");

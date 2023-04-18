@@ -1,12 +1,17 @@
 var express = require('express');
 var router = express.Router();
 var {
-    getOrderValidator
+    getOrderValidator,
+    generateTokenValidator
 } = require("./validator");
 var driverOnRoute  = require("../../../mongoose/schema/driverOnRoute");
 
 var Utils = require('../../utils');
 const { OrderStatus } = require('@prisma/client');
+
+router.get("/generateCustomerToken", generateTokenValidator, async function(req, res) {
+    Utils.makeResponse(res, 200, Utils.generateCustomerToken(req.query.orderId));
+});
 
 router.get("/order", getOrderValidator, Utils.customerTokenRequired, async function(req, res) {
     // if the order is already delivered, return order information only

@@ -14,6 +14,7 @@ enum Verification {
 }
 
 enum OrderStatus {
+  CREATED
   ASSIGNED
   ACCEPTED
   PICKEDUP
@@ -55,11 +56,10 @@ model Restaurant {
 model deliveryOrder {
   id Int @id @default(autoincrement())
   createdAt DateTime @default(now())
-  estimatedDeliveryTime DateTime
-  estimatedDeliveryCost Decimal @db.Decimal(15, 2)
+  estimatedDeliveryTime DateTime?
   actualDeliveryTime DateTime?
-  actualDeliveryCost Decimal? @db.Decimal(15, 2)
-  status OrderStatus @default(ASSIGNED)
+  cost Decimal? @db.Decimal(15, 2)
+  status OrderStatus @default(CREATED)
   customerStreet String
   customerCity String
   customerState String
@@ -69,8 +69,10 @@ model deliveryOrder {
   customerPhone String
   restaurantId Int
   driverId Int?
-  comment String? @db.Text
+  comment String?
   trace String? @db.Text
+  stripePaymentIntentId String?
+  stripeTransferId String?
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
   driver Driver? @relation(fields: [driverId], references: [id])
 }

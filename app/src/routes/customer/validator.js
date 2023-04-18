@@ -7,9 +7,27 @@ const db = new PrismaClient()
 var Utils = require('../../utils');
 
 getOrderValidator = [
-    query("token").exists("Please input your token")
+    query("token").exists({ checkFalsy: true }).withMessage("Please input your token"),
+    Utils.validate
+]
+
+generateTokenValidator = [
+    query("orderId").exists({ checkFalsy: true }).withMessage("Please input orderId").isInt().withMessage("Invalid order id").bail().withMessage(async (value, { req }) => {
+        const order  = await db.deliveryOrder.findUnique({
+            where: {
+                id: value
+            }
+        });
+
+        if (!order) {
+            return Promise.reject("order does not exist");
+        }
+
+        req.order = order;
+    })
 ]
 
 module.exports = {
-    getOrderValidator
+    getOrderValidator,
+    generateTokenValidator
 }
