@@ -13,7 +13,7 @@ router.get("/generateCustomerToken", generateTokenValidator, async function(req,
     Utils.makeResponse(res, 200, Utils.generateCustomerToken(req.query.orderId));
 });
 
-router.get("/order", getOrderValidator, Utils.customerTokenRequired, async function(req, res) {
+router.get("/order", getOrderValidator, async function(req, res) {
     // if the order is already delivered, return order information only
     if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED || req.order.status == OrderStatus.ASSIGNED) {
         return Utils.makeResponse(res, 200, req.order);
