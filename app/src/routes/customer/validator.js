@@ -18,7 +18,7 @@ getOrderValidator = [
 ]
 
 generateTokenValidator = [
-    query("orderId").exists({ checkFalsy: true }).withMessage("Please input orderId").isInt().withMessage("Invalid order id").toInt().bail().withMessage(async (value, { req }) => {
+    query("orderId").exists({ checkFalsy: true }).withMessage("Please input orderId").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
         const order  = await db.deliveryOrder.findUnique({
             where: {
                 id: value
