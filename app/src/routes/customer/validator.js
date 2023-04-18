@@ -1,5 +1,4 @@
 var { body, param, query } = require('express-validator');
-var emailValidate = require("../../../mongoose/schema/emailValidation");
 
 var { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient()
@@ -22,9 +21,8 @@ generateTokenValidator = [
         if (!order) {
             return Promise.reject("order does not exist");
         }
-
-        req.order = Utils.exclude(order, ["stripePaymentIntentId", "stripeTransferId"]);
-    })
+    }),
+    Utils.validate
 ]
 
 module.exports = {

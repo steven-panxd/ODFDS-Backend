@@ -186,7 +186,8 @@ class Utils {
             return Utils.makeResponse(res, 401, "Invalid json web token");
         }
 
-        req.order = order;
+        // remove stripe ids for customer
+        req.order = Utils.exclude(order, ["stripePaymentIntentId", "stripeTransferId"]);
         next()
     }
 
