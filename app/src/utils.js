@@ -149,7 +149,7 @@ class Utils {
             return Utils.makeResponse(res, 401, "Invalid token");
         }
 
-        const id = decoded.id;
+        const id = parseInt(decoded.id);
         var order;
         order = await db.deliveryOrder.findUnique({
             where: { id: id },

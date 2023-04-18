@@ -11,6 +11,7 @@ servers:
 tags:
 - name: Restaurant
 - name: Driver
+- name: Customer
 - name: Common
 
 paths:
@@ -529,7 +530,7 @@ paths:
                 data: Please log in
   /restaurant/order:
     get:
-      description: get order detail
+      description: get order detail for a restaurant
       tags:
       - Restaurant
       summary: get order detail
@@ -641,15 +642,67 @@ paths:
               example:
                 code: 401
                 data: Please log in
+  /restaurant/order/pay:
+     post:
+      description: pay a delivery order
+      tags:
+      - Restaurant
+      summary: pay a delivery order
+      parameters:
+        - in: header
+          name: access_token
+          schema:
+            type: string
+            description: restaurant access token
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestaurantPayOrderRequest'
+      responses:
+        '200':
+          description: Succeed, return order id
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data:
+                    message: Order paid
+                    orderId: 1
+        '400':
+          description: Invalid parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 400
+                data:
+                  field: orderId
+                  value: null
+                  message: Please input order id
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              example:
+                code: 401
+                data: Please log in
         '404':
-          description: No avaliable drivers
+          description: Some errors that will cancel the order
           content:
             application/json:
               schema: 
                 $ref: '#/components/schemas/GeneralResponse'
               example:
                 code: 404
-                data: No avaliable drivers
+                data: No avaliable drivers, the order got cancelled
   /driver/emailCode:
     get:
       description: Get an email verification code for creating a driver account
@@ -1391,6 +1444,90 @@ paths:
               example:
                 code: 403
                 data: Driver's websocket disconnected
+  /customer/order:
+    get:
+      description: get order detail for a restaurant
+      tags:
+      - Customer
+      summary: get order detail
+      parameters:
+        - in: query
+          name: token
+          schema:
+            type: string
+            description: customer token got from confirmation email
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          required: true
+      responses:
+        '200':
+          description: return customer order detail
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/CustomerOrderDetail'
+        '400':
+          description: invalid parameters
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                  Empty order id:
+                    value:
+                      code: 400
+                      data:
+                        field: token
+                        value: null
+                        message: Please input token
+                  Invalid token:
+                    value:
+                      code: 400
+                      data:
+                        field: token
+                        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+                        message: Invalid token
+  /customer/generateCustomerToken:
+    get:
+      description: generate customer check order status token (dev only)
+      tags:
+      - Customer
+      summary: generate customer check order status token (dev only)
+      parameters:
+        - in: query
+          name: orderId
+          schema:
+            type: string
+            description: order id
+            example: 1
+          required: true
+      responses:
+        '200':
+          description: return token
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/CustomerOrderDetail'
+        '400':
+          description: invalid parameters
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralInvalidResponse'
+              examples:
+                  Empty order id:
+                    value:
+                      code: 400
+                      data:
+                        field: orderId
+                        value: null
+                        message: Please input order id
+                  Order does not exist:
+                    value:
+                      code: 400
+                      data:
+                        field: orderId
+                        value: 1
+                        message: order does not exist
   /common/upload/image:
     post:
       description: upload an image to the server
@@ -2142,3 +2279,119 @@ components:
         - customerPhone
         - customerName
         - comment
+    RestaurantPayOrderRequest:
+      description: restaurant pay an order request
+      type: object
+      properties:
+        orderId:
+          type: string
+          example: 1
+        paymentMethodId:
+          type: string
+          example: card_1My1EaC5jCFjt6MgeDGufaxX
+      required:
+        - orderId
+        - paymentMethodId
+    CustomerOrderDetail:
+      description: customer get order detail
+      type: object
+      properties:
+        id: 
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        estimatedDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        estimatedDeliveryCost:
+          type: string
+          example: "50.25"
+        actualDeliveryTime:
+          type: string
+          example: "2023-03-22T10:00:00.000Z"
+        actualDeliveryCost:
+          type: string
+          example: "50.25"
+        status:
+          type: string
+          example: ACCEPTED
+        customerStreet: 
+          type: string
+          example: "One Apple Park Way"
+        customerCity: 
+          type: string
+          example: "Cupertino"
+        customerState:
+          type: string
+          example: "CA"
+        customerZipCode:
+          type: string
+          example: "95014"
+        customerName:
+          type: string
+          example: "Tim Cook"
+        customerEmail:
+          type: string
+          example: "xd.cs157c@gmail.com"
+        customerPhone:
+          type: string
+          example: "6691234567"
+        restaurant:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            email:
+              type: string
+              example: steven.panxd@gmail.com
+            phone:
+              type: string
+              example: 4081234567
+            name:
+              type: string
+              example: McDonalds
+            verification: 
+              type: string
+              example: NOTVERIFIED
+            street:
+              type: string
+              example: 1 Washington Square
+            city:
+              type: string
+              example: San Jose
+            state:
+              type: string
+              example: CA
+            zipCode:
+              type: string
+              example: 95192
+        driver:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            firstName:
+              type: string
+              example: Steven
+            lastName:
+              type: string
+              example: Pan
+            middleName:
+              type: string
+              example: null
+            email:
+              type: string
+              example: stevenxpan@yahoo.com
+            phone:
+              type: string
+              example: "4081234567"
+            latitude:
+              type: number
+              example: 37.337488971455045
+            longitude:
+              type: number
+              example: -121.88070050242536

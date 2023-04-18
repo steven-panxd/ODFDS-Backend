@@ -173,7 +173,7 @@ router.post('/pay_order', Utils.driverLoginRequired, async (req, res) => {
         return
     }
     //pay order
-    StripeWrapper.transferFunds(order.estimatedDeliveryCost*100, req.user.stripeAccountId).then(
+    StripeWrapper.transferFunds(order.estimatedDeliveryCost * 100, req.user.stripeAccountId).then(
         async (result) => {
             await db.deliveryOrder.update(
                 {where: {
