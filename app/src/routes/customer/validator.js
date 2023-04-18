@@ -6,12 +6,19 @@ const db = new PrismaClient()
 var Utils = require('../../utils');
 
 getOrderValidator = [
-    query("token").exists({ checkFalsy: true }).withMessage("Please input your token"),
+    query("token").exists({ checkFalsy: true }).withMessage("Please input your token").bail().custom(async (value, { req }) => {
+        const order = await Utils.checkCustomerToken(value);
+        if (!order) {
+            return Promise.reject("invalid customer token");
+        }
+
+        req.order = order;
+    }),
     Utils.validate
 ]
 
 generateTokenValidator = [
-    query("orderId").exists({ checkFalsy: true }).withMessage("Please input orderId").isInt().withMessage("Invalid order id").bail().withMessage(async (value, { req }) => {
+    query("orderId").exists({ checkFalsy: true }).withMessage("Please input orderId").isInt().withMessage("Invalid order id").toInt().bail().withMessage(async (value, { req }) => {
         const order  = await db.deliveryOrder.findUnique({
             where: {
                 id: value

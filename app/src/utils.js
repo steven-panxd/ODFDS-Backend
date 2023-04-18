@@ -134,21 +134,20 @@ class Utils {
         return jwt.sign(data, process.env.SECRET_KEY);
     }
 
-    // validate customer check order token
-    static async customerTokenRequired(req, res, next) {
-        const token = req.query.token;
+    // check customer check order token, return order if exist, else return null
+    static async checkCustomerToken(token) {
         if (!token) {
-            return Utils.makeResponse(res, 401, "Invalid token");
+            return null;
         }
 
         const decoded = Utils.verifyToken(token);
         if (!decoded) {
-            return Utils.makeResponse(res, 401, "Invalid token");
+            return null;
         }
 
         const type = decoded.type;
         if (type != "Order") {
-            return Utils.makeResponse(res, 401, "Invalid token");
+            return null;
         }
 
         const id = parseInt(decoded.id);
@@ -183,12 +182,12 @@ class Utils {
 
         // if no order found from the database
         if (!order) {
-            return Utils.makeResponse(res, 401, "Invalid json web token");
+            return null;
         }
 
         // remove stripe ids for customer
-        req.order = Utils.exclude(order, ["stripePaymentIntentId", "stripeTransferId"]);
-        next()
+        order = Utils.exclude(order, ["stripePaymentIntentId", "stripeTransferId"]);
+        return order;
     }
 
     // decode/verify a json web token, return null if error, otherwise, return original data
