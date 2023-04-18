@@ -23,7 +23,7 @@ generateTokenValidator = [
             return Promise.reject("order does not exist");
         }
 
-        req.order = order;
+        req.order = Utils.exclude(order, ["stripePaymentIntentId", "stripeTransferId"]);
     })
 ]
 
