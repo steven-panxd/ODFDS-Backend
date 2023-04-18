@@ -11,7 +11,8 @@ var { getDriverEmailCodeValidator,
       driverPickUpOrderValidator,
       driverDeliverOrderValidator,
       driverAcceptOrRejectOrderValidator,
-      getOrderDetailValidator
+      getOrderDetailValidator,
+      driverAskPayOrderValidator
 } = require("./validator");
 var emailValidate = require("../../../mongoose/schema/emailValidation");
 var driverLocation  = require("../../../mongoose/schema/driverLocation");
@@ -53,7 +54,7 @@ router.post('/', postDriverSignUpValidator, async function(req, res) {
       phone: req.body.phone
     });
   } catch (stripeError) {
-    return Utils.makeResponse(res, 200, "Stripe Error: " + stripeError.message);
+    return Utils.makeResponse(res, 500, "Stripe Error: " + stripeError.message);
   }
 
   var stripeAccountId = result.id;
@@ -254,7 +255,13 @@ router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValida
   if (!driverWs) {
     return Utils.makeResponse(res, 403, "Driver's websocket is disconnected");
   }
-  await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
+  
+  try {
+    await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
+  } catch(error) {
+    Utils.makeResponse(res, 500, error.message);
+  }
+  
   Utils.makeResponse(res, 200, "Succeed");
 });
 
@@ -266,6 +273,13 @@ router.ws('/location', async function(ws, req) {
   
   // close the websocket if driver authentication failed
   if (!req.user) {
+    return ws.close();
+  }
+
+  // if the driver's stripe account is not verified, we should not allow the driver to accept orders
+  const driverStripeAccount = await StripeWrapper.getDriverAccount(req.user.stripeAccountId);
+  if (driverStripeAccount.individual.verification.status != "verified") {
+    Utils.makeWsResponse(ws, 207, "Your stripe account is not verified.");
     return ws.close();
   }
 

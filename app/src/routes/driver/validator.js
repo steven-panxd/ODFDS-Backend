@@ -315,6 +315,47 @@ const driverDeliverOrderValidator = [
   Utils.validate
 ]
 
+const driverAskPayOrderValidator = [
+  query("orderId").exists({ checkFalsy: true }).withMessage("Please input order id").isInt().withMessage("Invalid order id").toInt().bail().custom(async (value, { req }) => {
+    const order = await db.deliveryOrder.findUnique({
+      where: {
+        id: value
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // if order does not exist
+    if (!order) {
+      return Promise.reject("Order does not exist");
+    }
+
+    // if the order does not belong to current driver
+    if (req.user.id != order.driverId) {
+      return Promise.reject("This is not your order");
+    }
+
+    if (order.status != OrderStatus.DELIVERED) {
+      return Promise.reject("Invalid order status = " + order.status);
+    }
+
+    req.order = order;
+  }),
+  Utils.validate
+]
+
 module.exports = {
     getDriverEmailCodeValidator,
     postDriverSignUpValidator,
@@ -328,5 +369,6 @@ module.exports = {
     driverPickUpOrderValidator,
     driverDeliverOrderValidator,
     driverAcceptOrRejectOrderValidator,
-    getOrderDetailValidator
+    getOrderDetailValidator,
+    driverAskPayOrderValidator
 }

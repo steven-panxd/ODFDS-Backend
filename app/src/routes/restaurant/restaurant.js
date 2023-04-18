@@ -373,10 +373,11 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
           status: OrderStatus.CANCELLED
       }
     })
+    console.log(stripeError);
     return Utils.makeResponse(res, 404, "Stripe Error: " + stripeError.raw.message)
   }
   // check payment status, if not paid, cancel the order
-  if (paymentResult.status != "succeeded") {
+  if (paymentResult.status != "requires_confirmation") {
     await db.deliveryOrder.update(
       {where: {
           id: req.body.orderId
@@ -387,7 +388,7 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
       }
     });
     console.log(paymentResult);
-    return Utils.makeResponse(res, 404, "Payment Error: " + paymentResult.raw.message);
+    return Utils.makeResponse(res, 404, "Payment Error: invalid payment result status = " + paymentResult.status);
   }
 
   // estimatedDeliveryTime = Now + time the driver need to go to the restaurant + time the driver need to deliver the order from restaurant to customer
