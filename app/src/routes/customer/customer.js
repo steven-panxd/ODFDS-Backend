@@ -15,15 +15,15 @@ router.get("/generateCustomerToken", generateTokenValidator, async function(req,
 
 router.get("/order", getOrderValidator, async function(req, res) {
     // if the order is already delivered, return order information only
-    if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED || req.order.status == OrderStatus.ASSIGNED) {
+    if (req.order.status == OrderStatus.CREATED || req.order.status == OrderStatus.ASSIGNED || req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED) {
         return Utils.makeResponse(res, 200, req.order);
     }
 
     // otherwise, find driver's current location as well
-    const driverCurrentLocation = await driverOnRoute.find({ driverId: req.order.driver.id }).sort({createdAt: "desc"}).limit(1);
+    const driverCurrentLocation = await Utils.getDriverOnRouteLocation(req.order.driver.id);
     if (driverCurrentLocation) {
-        req.order.driver.latitude = driverCurrentLocation[0].location.coordinates[1];
-        req.order.driver.longitude = driverCurrentLocation[0].location.coordinates[0];
+        req.order.driver.latitude = driverCurrentLocation.latitude;
+        req.order.driver.longitude = driverCurrentLocation.longitude;
     }
     Utils.makeResponse(res, 200, req.order);
 });

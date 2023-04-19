@@ -265,7 +265,7 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
 router.get("/order", Utils.restaurantLoginRequired, getOrderDetailValidator, async function(req, res) {
   // if the order is delivered or the driver hasn't accepted it
   req.order.restaurant = req.user;
-  if (req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED || req.order.status == OrderStatus.ASSIGNED) {
+  if (req.order.status == OrderStatus.CREATED || req.order.status == OrderStatus.ASSIGNED || req.order.status == OrderStatus.DELIVERED || req.order.status == OrderStatus.CANCELLED) {
     return Utils.makeResponse(res, 200, req.order);
   }
 
