@@ -21,8 +21,10 @@ router.get("/order", getOrderValidator, async function(req, res) {
 
     // otherwise, find driver's current location as well
     const driverCurrentLocation = await driverOnRoute.find({ driverId: req.order.driver.id }).sort({createdAt: "desc"}).limit(1);
-    req.order.driver.latitude = driverCurrentLocation.location.coordinates[1];
-    req.order.driver.longitude = driverCurrentLocation.location.coordinates[0];
+    if (driverCurrentLocation) {
+        req.order.driver.latitude = driverCurrentLocation[0].location.coordinates[1];
+        req.order.driver.longitude = driverCurrentLocation[0].location.coordinates[0];
+    }
     Utils.makeResponse(res, 200, req.order);
 });
 
