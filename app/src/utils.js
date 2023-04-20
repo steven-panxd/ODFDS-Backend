@@ -678,12 +678,12 @@ class Utils {
     }
 
     static async removeDriverFromAnyOrder(driverWs, driverId) {
+        // set driverStatus to waiting for order
+        driverWs.driverStatus = Utils.DriverStatus.WAITTING_ORDER;
         // remove a driver from any pending acceptance order
         await driverOnRoute.deleteMany({
             driverId: driverId
         });
-        // set driverStatus to waiting for order
-        driverWs.driverStatus = Utils.DriverStatus.WAITTING_ORDER;
     }
 
     static async driverAcceptOrder(req, driverWs, driverId, order) {

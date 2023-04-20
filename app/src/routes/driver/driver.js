@@ -357,7 +357,13 @@ router.ws('/location', async function(ws, req) {
             status: OrderStatus.ASSIGNED
           }
         });
-        await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
+        // if an driver rejects an order first, and the suddenly disconnect with the backend, 
+        // the order.driverId will be assigned to another order but the old driver's ws.driverStatus may remain PENDING_ORDER_ACCEPTANCE
+        // hence, we need to check if order is null
+        // if it is null, we do nothing
+        if (order) {
+          await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
+        }
       } else if (ws.driverStatus == Utils.DriverStatus.WAITTING_ORDER) {
         // delete the location info on mongoDB database when disconnected
         await driverLocation.deleteMany({
