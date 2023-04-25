@@ -385,6 +385,43 @@ class Utils {
         return encodePathUtil.encodePath(coordinates);
     }
 
+    // find a driver who is on the way to pick up only one order from this restaurant
+    static async findOneOrderDriver(restaurant) {
+        const driverIds = await db.deliveryOrder.groupBy({
+            by: ["driverId"],
+            where: {
+            restaurantId: restaurant.id,
+            status: OrderStatus.ACCEPTED
+            },
+            having: {
+            driverId: {
+                _count: {
+                lt: 2
+                }
+            }
+            }
+        });
+
+        if (driverIds.length == 0) {
+            return null;
+        }
+
+        // find driver by id
+        const driverId = driverIds[0].driverId;
+        let driver = await db.driver.findUnique({
+            where: {
+                id: driverId
+            }
+        });
+
+        // fetch driver's current location
+        const location = await Utils.getDriverOnRouteLocation(driverId);
+        driver.latitude = location.latitude;
+        driver.longitude = location.longitude;
+
+        return driver;
+    }
+
     // find nearest driver to a restaurant by Gooogle Maps API, need restaurant information
     static async findNearestDriver(restaurant, excludeDriverIds) {
         const address = restaurant.street + ", " + restaurant.city + ", " + restaurant.state + ", " + restaurant.zipCode;
@@ -483,33 +520,33 @@ class Utils {
 
     // check driver order status
     static async checkDriverStatus(req, driverWs, driverId) {
-        const pendingAcceptOrders = await db.deliveryOrder.findFirst({
-            where: {
-                driverId: driverId,
-                status: OrderStatus.ASSIGNED
-            },
-            include: {
-                restaurant: {
-                    select: {
-                        id: true,
-                        street: true,
-                        city: true,
-                        state: true,
-                        zipCode: true,
-                        phone: true,
-                        name: true,
-                        email: true
-                    }
-                }
-            }
-        });
+        // const pendingAcceptOrders = await db.deliveryOrder.findFirst({
+        //     where: {
+        //         driverId: driverId,
+        //         status: OrderStatus.ASSIGNED
+        //     },
+        //     include: {
+        //         restaurant: {
+        //             select: {
+        //                 id: true,
+        //                 street: true,
+        //                 city: true,
+        //                 state: true,
+        //                 zipCode: true,
+        //                 phone: true,
+        //                 name: true,
+        //                 email: true
+        //             }
+        //         }
+        //     }
+        // });
 
-        // if the driver has pending acceptance order
-        if (pendingAcceptOrders) {
-            return await Utils.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
-        }
+        // // if the driver has pending acceptance order
+        // if (pendingAcceptOrders) {
+        //     return await Utils.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
+        // }
 
-        const inPickUpOrders = await db.deliveryOrder.findFirst({
+        const inPickUpOrders = await db.deliveryOrder.findMany({
             where: {
                 driverId: driverId,
                 status: OrderStatus.ACCEPTED
@@ -531,11 +568,11 @@ class Utils {
         });
 
         // if the driver has accepted in delivery order
-        if (inPickUpOrders) {
+        if (inPickUpOrders.length > 0) {
             return await Utils.assignInPickUpOrderToDriver(req, driverWs, driverId, inPickUpOrders);
         }
 
-        const inDeliveryOrders = await db.deliveryOrder.findFirst({
+        const inDeliveryOrders = await db.deliveryOrder.findMany({
             where: {
                 driverId: driverId,
                 status: OrderStatus.PICKEDUP
@@ -557,7 +594,7 @@ class Utils {
         });
 
         // if the driver has accepted in delivery order
-        if (inDeliveryOrders) {
+        if (inDeliveryOrders.length > 0) {
             return await Utils.assignInDeliveryOrderToDriver(req, driverWs, driverId, inDeliveryOrders);
         }
 
@@ -619,16 +656,21 @@ class Utils {
         Utils.makeWsResponse(driverWs, 201, order)
     }
 
-    static async assignInPickUpOrderToDriver(req, driverWs, driverId, order) {
-        // set driverStatus
-        driverWs.driverStatus = Utils.DriverStatus.IN_DELIVERY;
-        Utils.makeWsResponse(driverWs, 204, order)
+    static async assignSecondOrderToDriver(req, driverWs, driverId, order) {
+        // notify driver a new second order received
+        Utils.makeWsResponse(driverWs, 207, order);
     }
 
-    static async assignInDeliveryOrderToDriver(req, driverWs, driverId, order) {
+    static async assignInPickUpOrderToDriver(req, driverWs, driverId, orders) {
         // set driverStatus
         driverWs.driverStatus = Utils.DriverStatus.IN_DELIVERY;
-        Utils.makeWsResponse(driverWs, 205, order)
+        Utils.makeWsResponse(driverWs, 204, orders)
+    }
+
+    static async assignInDeliveryOrderToDriver(req, driverWs, driverId, orders) {
+        // set driverStatus
+        driverWs.driverStatus = Utils.DriverStatus.IN_DELIVERY;
+        Utils.makeWsResponse(driverWs, 205, orders)
     }
 
     static async reAssignOrder(req, order) {
@@ -733,7 +775,7 @@ class Utils {
             orderId: order.id
         });
 
-        await Utils.assignInPickUpOrderToDriver(req, driverWs, driverId, order);
+        await Utils.assignInPickUpOrderToDriver(req, driverWs, driverId, [order]);
     }
 
     static async driverRejectOrder(req, oldDriverWs, oldDriverId, order) {
@@ -749,14 +791,22 @@ class Utils {
         });
     }
 
-    static async driverPickUpOrder(req, driverWs, driverId, order) {
+    static async driverPickUpOrder(req, driverWs, driverId) {
         // update order status to PICKEDUP
-        order = await db.deliveryOrder.update({
+        await db.deliveryOrder.updateMany({
             where: {
-                id: order.id
+                driverId: driverId,
+                status: OrderStatus.ACCEPTED
             },
             data: {
                 status: OrderStatus.PICKEDUP
+            }
+        });
+        
+        const orders = await db.deliveryOrder.findMany({
+            where: {
+                driverId: driverId,
+                status : OrderStatus.PICKEDUP
             },
             include: {
                 restaurant: {
@@ -775,10 +825,12 @@ class Utils {
         });
 
         // send a email notification to the customer that your order is picked up
-        await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is picked up", "<h2> Your order is picked up by driver:" + req.user.firstName + " " + req.user.lastName + ".</h2>");
+        orders.map(async order => {
+            await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is picked up", "<h2> Your order is picked up by driver:" + req.user.firstName + " " + req.user.lastName + ".</h2>");
+        })
         
         // update driverWs.driverStatus and notify driver through wensocket
-        await Utils.assignInDeliveryOrderToDriver(req, driverWs, driverId, order);
+        await Utils.assignInDeliveryOrderToDriver(req, driverWs, driverId, orders);
     }
 
     static async driverDeliverOrder(req, driverWs, driverId, order) {
@@ -792,7 +844,11 @@ class Utils {
 
         // find all reached coordinates after the driver accepted the order and before the driver delivered the order
         const rawTracePoints = await driverOnRoute.find({
-            driverId: driverId
+            driverId: driverId,
+            createdAt: {
+                $gte: order.createdAt,
+                $lte: new Date()
+            }
         }).sort({ createdAt: "asc" });
 
         let tracePoints = [];
@@ -826,12 +882,25 @@ class Utils {
             }
         });
 
-        await Utils.removeDriverFromAnyOrder(driverWs, driverId);
         // send email notifications to customer and restaurant that the order is delivered
         await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is delivered", "<h2> Your order is delivered.</h2>");
         await Utils.sendEmail(order.restaurant.email, "To Restaurant: Your order #" + order.id + " is delivered", "<h2> Your order is delivered.</h2>");
 
-        Utils.makeWsResponse(driverWs, 206, order);
+        const secondOrder = await db.deliveryOrder.findMany({
+            where: {
+                driverId: driverId,
+                status: OrderStatus.PICKEDUP
+            }
+        });
+
+        if (secondOrder.length > 0) {
+            // if there is one more picked up order
+            Utils.makeWsResponse(driverWs, 208, secondOrder);
+        } else {
+            // if the driver has no more order
+            await Utils.removeDriverFromAnyOrder(driverWs, driverId);
+            Utils.makeWsResponse(driverWs, 206);
+        }
     }
 
     static async driverTimeoutOrder(req, oldDriverWs, oldDriverId, order) {

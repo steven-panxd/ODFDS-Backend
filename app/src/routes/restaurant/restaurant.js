@@ -325,25 +325,43 @@ router.post('/order', Utils.restaurantLoginRequired, postDeliveryOrderValidator,
 });
 
 router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderValidator, async function(req, res) {
+  // compose customer address and restaurant address
   const customerAddr = req.order.customerStreet + ", " + req.order.customerCity + ", " + req.order.customerState + ", " + req.order.customerZipCode;
   const restaurantAddr = req.user.street + ", " + req.user.city + ", " + req.user.state + ", " + req.user.zipCode;
 
-  // find nearest driver
-  const nearestDriver = await Utils.findNearestDriver(req.user, []);
-  // if there is no driver near the restaurant, cancel the order
-  if (!nearestDriver) {
-    await db.deliveryOrder.update({
-      where: {
-        id: req.body.orderId
-      },
-      data: {
-        status: OrderStatus.CANCELLED
-      }
-    });
-    return Utils.makeResponse(res, 404, "No avaliable drivers online, order got cancelled");
+  // find driver who is coming and picking up only ONE order from current restaurant
+  let driver;
+  let driverWsClient;
+  let newDriverFlag = false;
+  driver = await Utils.findOneOrderDriver(req.user);
+  if (driver) {
+    // if driver's websocket is disconnected, do not assign the order to this driver
+    driverWsClient = Utils.getDriverWsClient(req, driver.id);
+    if (!driverWsClient) {
+      driver = null;
+    }
+  }
+  // otherwise, find a new nearest driver
+  if (!driver) {
+    newDriverFlag = true;
+    // find nearest driver
+    const nearestDriver = await Utils.findNearestDriver(req.user, []);
+    // if there is no driver near the restaurant, cancel the order
+    if (!nearestDriver) {
+      await db.deliveryOrder.update({
+        where: {
+          id: req.body.orderId
+        },
+        data: {
+          status: OrderStatus.CANCELLED
+        }
+      });
+      return Utils.makeResponse(res, 404, "No avaliable drivers online, order got cancelled");
+    }
+    driver = nearestDriver;
   }
 
-  const nearestDriverLocation = nearestDriver.latitude + ", " + nearestDriver.longitude;
+  const nearestDriverLocation = driver.latitude + ", " + driver.longitude;
   const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
   const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
   if (!(result1.duration && result2.duration)) {  // if there is no route between them, drivers are too far from the restaurant, cancel the order
@@ -357,6 +375,7 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
     });
     return Utils.makeResponse(res, 404, "No avaliable drivers near you, order got cancelled");
   }
+  driverWsClient = Utils.getDriverWsClient(req, driver.id);
 
   // make and process the order payment
   let paymentResult;
@@ -395,37 +414,78 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
   const estimatedDeliveryTime = new Date(new Date().getTime() + (result1.duration + result2.duration) * 1000);
 
   // update database
-  const order = await db.deliveryOrder.update({
-    where: {
-      id: req.body.orderId
-    },
-    data: {
-      stripePaymentIntentId: paymentResult.id,
-      driverId: nearestDriver.id,
-      estimatedDeliveryTime: estimatedDeliveryTime,
-      status: OrderStatus.ASSIGNED
-    },
-    include: {
-      restaurant: {
-        select: {
-          id: true,
-          name: true,
-          street: true,
-          city: true,
-          state: true,
-          zipCode: true,
-          phone: true,
-          email: true
+  let order;
+  if (newDriverFlag) {
+    order = await db.deliveryOrder.update({
+      where: {
+        id: req.body.orderId
+      },
+      data: {
+        stripePaymentIntentId: paymentResult.id,
+        driverId: driver.id,
+        estimatedDeliveryTime: estimatedDeliveryTime,
+        status: OrderStatus.ASSIGNED
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
         }
       }
+    });
+    // send order to driver
+    await Utils.assignPendingAcceptanceOrderToDriver(req, driverWsClient, driver.id, order);
+  } else {
+    // confirm payment from restaurant
+    try {
+        paymentResult = await StripeWrapper.confirmPaymentIntent(paymentResult.id);
+    } catch (stripeError) {
+        console.log(stripeError);
+        throw Error("Stripe Error: " + stripeError.raw.message);
     }
-  })
 
-  // send order to driver
-  const driverWsClient = Utils.getDriverWsClient(req, nearestDriver.id);
-  await Utils.assignPendingAcceptanceOrderToDriver(req, driverWsClient, nearestDriver.id, order);
-
-
+    if (paymentResult.status != "succeeded") {
+        console.log(paymentResult);
+        throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
+    }
+    
+    order = await db.deliveryOrder.update({
+      where: {
+        id: req.body.orderId
+      },
+      data: {
+        stripePaymentIntentId: paymentResult.id,
+        driverId: driver.id,
+        estimatedDeliveryTime: estimatedDeliveryTime,
+        status: OrderStatus.ACCEPTED  // accepted automatically
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            street: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+    // send order to driver
+    await Utils.assignSecondOrderToDriver(req, driverWsClient, driver.id, order);
+  }
+  
   // send tracking token to customer by email
   await Utils.sendEmail(order.customerEmail, "To Customer: Information for your order #" + order.id, "<h2> Your order tracking token: " + Utils.generateCustomerToken(order.id) + "</h2>");
 

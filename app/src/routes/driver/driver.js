@@ -8,7 +8,6 @@ var { getDriverEmailCodeValidator,
       postDriverResetPasswordValidator,
       deleteDriverAccountValidator,
       getDriverOrdersValidator,
-      driverPickUpOrderValidator,
       driverDeliverOrderValidator,
       driverAcceptOrRejectOrderValidator,
       getOrderDetailValidator,
@@ -241,12 +240,24 @@ router.get("/order/reject", Utils.driverLoginRequired, driverAcceptOrRejectOrder
   Utils.makeResponse(res, 200, "Succeed");
 });
 
-router.get("/order/pickUp", Utils.driverLoginRequired, driverPickUpOrderValidator, async function(req, res) {
+router.get("/order/pickUp", Utils.driverLoginRequired, async function(req, res) {
+  const orders = await db.deliveryOrder.findMany({
+    where: {
+      driverId: req.user.id,
+      status: OrderStatus.ACCEPTED
+    }
+  });
+
+  if (!orders) {
+    return Utils.makeResponse(res, 401, "No avaliable pending pickup orders");
+  }
+
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
   if (!driverWs) {
     return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
   }
-  await Utils.driverPickUpOrder(req, driverWs, req.user.id, req.order);
+
+  await Utils.driverPickUpOrder(req, driverWs, req.user.id);
   Utils.makeResponse(res, 200, "Succeed");
 });
 
