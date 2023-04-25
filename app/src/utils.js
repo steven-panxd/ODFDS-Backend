@@ -406,10 +406,10 @@ class Utils {
             return null;
         }
 
-        let driverId = driverIds[0].driverId;
+        let driverId;
         // find driver who's websocket is not disconnected
         for (let index = 0; index < driverIds.length; index++) {
-            const tempDriverId = driverIds[index];
+            const tempDriverId = driverIds[index].driverId;
             const driverWs = Utils.getDriverWsClient(req, tempDriverId);
             if (driverWs) {
                 driverId = tempDriverId;
