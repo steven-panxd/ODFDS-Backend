@@ -386,7 +386,7 @@ class Utils {
     }
 
     // find a driver who is on the way to pick up only one order from this restaurant
-    static async findOneOrderDriver(restaurant) {
+    static async findOneOrderDriver(req, restaurant) {
         const driverIds = await db.deliveryOrder.groupBy({
             by: ["driverId"],
             where: {
@@ -406,8 +406,22 @@ class Utils {
             return null;
         }
 
+        let driverId = driverIds[0].driverId;
+        // find driver who's websocket is not disconnected
+        for (let index = 0; index < driverIds.length; index++) {
+            const tempDriverId = driverIds[index];
+            const driverWs = Utils.getDriverWsClient(req, tempDriverId);
+            if (driverWs) {
+                driverId = tempDriverId;
+                break;
+            }
+        }
+        // if all driver's ws disconnected
+        if (!driverId) {
+            return null;
+        }
+
         // find driver by id
-        const driverId = driverIds[0].driverId;
         let driver = await db.driver.findUnique({
             where: {
                 id: driverId
