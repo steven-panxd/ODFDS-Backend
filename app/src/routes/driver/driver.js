@@ -185,7 +185,12 @@ router.get('/orders', Utils.driverLoginRequired, getDriverOrdersValidator, async
       id: 'desc'
     },
     where: {
-      driverId: req.user.id
+      driverId: req.user.id,
+      // only find finished orders
+      OR: [
+        {status: OrderStatus.CANCELLED},
+        {status: OrderStatus.DELIVERED}
+      ]
     },
     include: {
       restaurant: {
@@ -208,7 +213,7 @@ router.get('/orders', Utils.driverLoginRequired, getDriverOrdersValidator, async
   // remove foreign key fields
   let cleanData = [];
   rawData.forEach((model) => {
-    cleanData.push(Utils.exclude(model, ["restaurantId", "driverId", "transactionId"]));
+    cleanData.push(Utils.exclude(model, ["restaurantId", "driverId"]));
   });
 
   Utils.makeResponse(res, 200, {
@@ -219,9 +224,45 @@ router.get('/orders', Utils.driverLoginRequired, getDriverOrdersValidator, async
   });
 });
 
-// router.get("/order", Utils.driverLoginRequired, getOrderDetailValidator, async function(req, res) {
-//   Utils.makeResponse(res, 200, req.order);
-// });
+router.get("/currentOrders", Utils.driverLoginRequired, async function(req, res) {
+  const rawData = await db.deliveryOrder.findMany({
+    orderBy: {
+      id: 'desc'
+    },
+    where: {
+      driverId: req.user.id,
+      // only find orders that is not finished yet
+      OR: [
+        {status: OrderStatus.ACCEPTED},
+        {status: OrderStatus.PICKEDUP}
+      ]
+    },
+    include: {
+      restaurant: {
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          name: true,
+          street: true,
+          city: true,
+          state: true,
+          zipCode: true
+        }
+      }
+    },
+    skip: skip,
+    take: pageSize
+  });
+
+  // remove foreign key fields
+  let cleanData = [];
+  rawData.forEach((model) => {
+    cleanData.push(Utils.exclude(model, ["restaurantId", "driverId"]));
+  });
+
+  Utils.makeResponse(res, 200, cleanData);
+});
 
 router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
@@ -374,7 +415,7 @@ router.ws('/location', async function(ws, req) {
       Utils.removeDriverWsClient(req, req.user.id);
       console.log("see you " + req.user.email);
     } else {
-      console.log("see you");
+      console.log("see you anonymous driver");
     }
   });
 });

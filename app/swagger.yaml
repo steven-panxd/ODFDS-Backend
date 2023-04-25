@@ -13,6 +13,7 @@ tags:
 - name: Driver
 - name: Customer
 - name: Common
+- name: Payment
 
 paths:
   /restaurant/emailCode:
@@ -1577,7 +1578,80 @@ paths:
                       field: image
                       value: xxx.exe
                       message: Only .png, .jpg and .jpeg format allowed!
-
+  /payment/create_setup_intent:
+    post:
+      description: restaurant create setup payment intent
+      tags:
+      - Payment
+      summary: restaurant create setup payment intent
+      parameters:
+      - in: header
+        name: access_token
+        description: restaurant's access token
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: stripe payment intent data
+  /payment/methods:
+    post:
+      description: get restaurant stripe payment methods
+      tags:
+      - Payment
+      summary: get restaurant stripe payment methods
+      parameters:
+      - in: header
+        name: access_token
+        description: restaurant's access token
+        schema: 
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: stripe payment method data
+    delete:
+      description: restaurant deletes a stripe payment method
+      tags:
+      - Payment
+      summary: restaurant delete a stripe payment method
+      parameters:
+      - in: header
+        name: access_token
+        description: restaurant's access token
+        schema: 
+          type: string
+        required: true
+      - in: query
+        name: paymentMethodId
+        schema:
+          type: string
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: stripe payment method data
+      
 components:
   schemas:
     GeneralResponse:
@@ -2299,102 +2373,108 @@ components:
       description: customer get order detail
       type: object
       properties:
-        id: 
+        code:
           type: integer
-          example: 1
-        createdAt:
-          type: string
-          example: "2023-03-22T10:00:00.000Z"
-        estimatedDeliveryTime:
-          type: string
-          example: "2023-03-22T10:00:00.000Z"
-        estimatedDeliveryCost:
-          type: string
-          example: "50.25"
-        actualDeliveryTime:
-          type: string
-          example: "2023-03-22T10:00:00.000Z"
-        actualDeliveryCost:
-          type: string
-          example: "50.25"
-        status:
-          type: string
-          example: ACCEPTED
-        customerStreet: 
-          type: string
-          example: "One Apple Park Way"
-        customerCity: 
-          type: string
-          example: "Cupertino"
-        customerState:
-          type: string
-          example: "CA"
-        customerZipCode:
-          type: string
-          example: "95014"
-        customerName:
-          type: string
-          example: "Tim Cook"
-        customerEmail:
-          type: string
-          example: "xd.cs157c@gmail.com"
-        customerPhone:
-          type: string
-          example: "6691234567"
-        restaurant:
+          example: 200
+        data:
           type: object
           properties:
-            id:
+            id: 
               type: integer
               example: 1
-            email:
+            createdAt:
               type: string
-              example: steven.panxd@gmail.com
-            phone:
+              example: "2023-03-22T10:00:00.000Z"
+            estimatedDeliveryTime:
               type: string
-              example: 4081234567
-            name:
+              example: "2023-03-22T10:00:00.000Z"
+            estimatedDeliveryCost:
               type: string
-              example: McDonalds
-            verification: 
+              example: "50.25"
+            actualDeliveryTime:
               type: string
-              example: NOTVERIFIED
-            street:
+              example: "2023-03-22T10:00:00.000Z"
+            actualDeliveryCost:
               type: string
-              example: 1 Washington Square
-            city:
+              example: "50.25"
+            status:
               type: string
-              example: San Jose
-            state:
+              example: ACCEPTED
+            customerStreet: 
               type: string
-              example: CA
-            zipCode:
+              example: "One Apple Park Way"
+            customerCity: 
               type: string
-              example: 95192
-        driver:
-          type: object
-          properties:
-            id:
-              type: integer
-              example: 1
-            firstName:
+              example: "Cupertino"
+            customerState:
               type: string
-              example: Steven
-            lastName:
+              example: "CA"
+            customerZipCode:
               type: string
-              example: Pan
-            middleName:
+              example: "95014"
+            customerName:
               type: string
-              example: null
-            email:
+              example: "Tim Cook"
+            customerEmail:
               type: string
-              example: stevenxpan@yahoo.com
-            phone:
+              example: "xd.cs157c@gmail.com"
+            customerPhone:
               type: string
-              example: "4081234567"
-            latitude:
-              type: number
-              example: 37.337488971455045
-            longitude:
-              type: number
-              example: -121.88070050242536
+              example: "6691234567"
+            restaurant:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                email:
+                  type: string
+                  example: steven.panxd@gmail.com
+                phone:
+                  type: string
+                  example: 4081234567
+                name:
+                  type: string
+                  example: McDonalds
+                verification: 
+                  type: string
+                  example: NOTVERIFIED
+                street:
+                  type: string
+                  example: 1 Washington Square
+                city:
+                  type: string
+                  example: San Jose
+                state:
+                  type: string
+                  example: CA
+                zipCode:
+                  type: string
+                  example: 95192
+            driver:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                firstName:
+                  type: string
+                  example: Steven
+                lastName:
+                  type: string
+                  example: Pan
+                middleName:
+                  type: string
+                  example: null
+                email:
+                  type: string
+                  example: stevenxpan@yahoo.com
+                phone:
+                  type: string
+                  example: "4081234567"
+                latitude:
+                  type: number
+                  example: 37.337488971455045
+                longitude:
+                  type: number
+                  example: -121.88070050242536
