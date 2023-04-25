@@ -333,14 +333,7 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
   let driver;
   let driverWsClient;
   let newDriverFlag = false;
-  driver = await Utils.findOneOrderDriver(req.user);
-  if (driver) {
-    // if driver's websocket is disconnected, do not assign the order to this driver
-    driverWsClient = Utils.getDriverWsClient(req, driver.id);
-    if (!driverWsClient) {
-      driver = null;
-    }
-  }
+  driver = await Utils.findOneOrderDriver(req, req.user);
   // otherwise, find a new nearest driver
   if (!driver) {
     newDriverFlag = true;
