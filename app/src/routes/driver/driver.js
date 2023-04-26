@@ -290,7 +290,7 @@ router.ws('/location', async function(ws, req) {
   // if the driver's stripe account is not verified, we should not allow the driver to accept orders
   const driverStripeAccount = await StripeWrapper.getDriverAccount(req.user.stripeAccountId);
   if (driverStripeAccount.individual.verification.status != "verified") {
-    Utils.makeWsResponse(ws, 207, "Your stripe account is not verified.");
+    Utils.makeWsResponse(ws, 209, "Your stripe account is not verified.");
     return ws.close();
   }
 
