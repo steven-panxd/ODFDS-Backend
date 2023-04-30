@@ -7,14 +7,17 @@ var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 const { Client } = require("@googlemaps/google-maps-services-js");
-const encodePathUtil = require("@googlemaps/google-maps-services-js/dist/util");
 const googleMapsClient = new Client({});
+const { AddressValidationClient } = require('@googlemaps/addressvalidation');
+const addressvalidationClient = new AddressValidationClient({});
+const encodePathUtil = require("@googlemaps/google-maps-services-js/dist/util");
 
 var driverLocation = require("../mongoose/schema/driverLocation");
 var driverOnRoute = require('../mongoose/schema/driverOnRoute');
 var orderAssignHistory = require("../mongoose/schema/orderAssignHistory");
 
 var StripeWrapper = require('./stripe/StripeWrapper');
+const { stat } = require('node:fs');
 
 
 // some utils functions
@@ -534,31 +537,31 @@ class Utils {
 
     // check driver order status
     static async checkDriverStatus(req, driverWs, driverId) {
-        // const pendingAcceptOrders = await db.deliveryOrder.findFirst({
-        //     where: {
-        //         driverId: driverId,
-        //         status: OrderStatus.ASSIGNED
-        //     },
-        //     include: {
-        //         restaurant: {
-        //             select: {
-        //                 id: true,
-        //                 street: true,
-        //                 city: true,
-        //                 state: true,
-        //                 zipCode: true,
-        //                 phone: true,
-        //                 name: true,
-        //                 email: true
-        //             }
-        //         }
-        //     }
-        // });
+        const pendingAcceptOrders = await db.deliveryOrder.findFirst({
+            where: {
+                driverId: driverId,
+                status: OrderStatus.ASSIGNED
+            },
+            include: {
+                restaurant: {
+                    select: {
+                        id: true,
+                        street: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                        phone: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
 
-        // // if the driver has pending acceptance order
-        // if (pendingAcceptOrders) {
-        //     return await Utils.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
-        // }
+        // if the driver has pending acceptance order
+        if (pendingAcceptOrders) {
+            return await Utils.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
+        }
 
         const inPickUpOrders = await db.deliveryOrder.findMany({
             where: {
@@ -994,6 +997,116 @@ class Utils {
     static removeDriverWsClient(req, driverId) {
         const clients = req.app.get("wsDriverClients");
         clients.delete(driverId);
+    }
+
+    static async validateAddress(street, city, state, zipCode, timeout = 10000) {       
+        // Run request
+        // const response = await addressvalidationClient.validateAddress({
+        //     address: {
+        //         regionCode: 'US',
+        //         addressLines: [street, city, state, zipCode]
+        //     },
+        //     options: {
+        //         timeout: timeout
+        //     }
+        // });
+        // console.log(response);
+
+        const inputAddress = street + ", " + city + ", " + state + " " + zipCode;
+
+        let returnData = {
+            pass : true,
+            inferred: false,
+            street: street,
+            city: city,
+            state: state,
+            zipCode: zipCode,
+            message: ""
+        }
+
+        const response = await googleMapsClient.placeAutocomplete({
+            params: {
+                input: inputAddress,
+                components: ["country:us"],
+                key: process.env.GOOGLE_MAPS_API_KEY,
+                timeout: timeout
+            },
+        });
+
+        if(response.data.status != "OK") {
+            if (response.data.status == "ZERO_RESULTS") {
+                returnData.inferred = false;
+                returnData.pass = false;
+                returnData.message = "Google maps API can not validate and infer this address"
+                return returnData;
+            } else {
+                throw Error("Google maps error, can not validate address"); 
+            }
+        }
+
+        const predictions = response.data.predictions;
+        console.log(predictions);
+
+        const prediction = predictions[0];
+        
+        const predictionPlaceIdResponse = await googleMapsClient.placeDetails({
+            params: {
+                place_id: prediction.place_id,
+                key: process.env.GOOGLE_MAPS_API_KEY
+            }
+        });
+
+        if (predictionPlaceIdResponse.data.status != "OK") {
+            throw Error("Google maps error, can not validate address"); 
+        }
+
+        const predictionPlaceIdAddress = predictionPlaceIdResponse.data.result.formatted_address;
+
+        const predictionArray = predictionPlaceIdAddress.split(", ");
+        let inferredStreet = null;
+        let inferredCity = null;
+        let inferredState = null;
+        let inferredZipCode = null;
+        if (predictionArray.length == 3) {
+            //[ 'San Jose', 'CA', 'USA' ]
+            //[ 'San Jose', 'CA 95112', 'USA' ]
+            // not a detailed address
+            returnData.inferred = false;
+            returnData.pass = false;
+            returnData.message = "Google maps API can not infer to a specific address"
+            return returnData;
+        } else if (predictionArray.length == 4) {
+            // [ '449 San Jose Avenue', 'San Jose', 'CA 95125', 'USA' ]
+            // [ '449 San Jose Avenue', 'San Jose', 'CA', 'USA' ]
+            inferredStreet = predictionArray[0];
+            inferredCity = predictionArray[1];
+            const cityZipCodeArray = predictionArray[2].split(" ");
+            inferredState = cityZipCodeArray[0];
+            if (cityZipCodeArray.length > 1) {
+                inferredZipCode = cityZipCodeArray[1];
+            }
+        } else {
+            // [ 'Antioch Baptist Church', 'East Julian Street', 'San Jose', 'CA 95112', 'USA' ]
+            // [ 'Antioch Baptist Church', 'East Julian Street', 'San Jose', 'CA', 'USA' ]
+            inferredStreet = predictionArray[0] + " " + predictionArray[1];
+            inferredCity = predictionArray[2];
+            const cityZipCodeArray = predictionArray[3].split(" ");
+            inferredState = cityZipCodeArray[0];
+            if (cityZipCodeArray.length > 1) {
+                inferredZipCode = cityZipCodeArray[1];
+            }
+        }
+
+        if (inferredStreet != returnData.street || inferredCity != returnData.city || inferredState != returnData.state || inferredZipCode != returnData.zipCode) {
+            returnData.street = inferredStreet;
+            returnData.city = inferredCity;
+            returnData.state = inferredState;
+            returnData.zipCode = inferredZipCode;
+            returnData.pass = false;
+            returnData.inferred = true;
+        }
+
+        return returnData;     
     }
 }
 

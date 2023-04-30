@@ -75,4 +75,24 @@ router.get("/file/:fileName", async function(req, res) {
     res.sendFile(mongoData.path, { root: "./" });
 });
 
+// validate address
+router.get("/validateAddress", async function(req, res) {
+    const street = req.query.street ? req.query.street : null;
+    const city = req.query.city ? req.query.city : null;
+    const state = req.query.state ? req.query.state : null;
+    const zipCode = req.query.zipCode ? req.query.zipCode : null;
+  
+    const result = await Utils.validateAddress(street, city, state, zipCode);
+  
+    if (result.pass) {
+      Utils.makeResponse(res, 200, result);
+    } else {
+      if (result.inferred) {
+        Utils.makeResponse(res, 401, result);
+      } else {
+        Utils.makeResponse(res, 404, result.message);
+      }
+    }
+  });
+
 module.exports = router;
