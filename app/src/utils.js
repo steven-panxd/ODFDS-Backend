@@ -17,7 +17,6 @@ var driverOnRoute = require('../mongoose/schema/driverOnRoute');
 var orderAssignHistory = require("../mongoose/schema/orderAssignHistory");
 
 var StripeWrapper = require('./stripe/StripeWrapper');
-const { stat } = require('node:fs');
 
 
 // some utils functions
@@ -42,11 +41,14 @@ class Utils {
     // example: { "code": 401, "data": "Unauthorized" }
     static makeWsResponse(ws, status_code, data) {
         // send message only if websocket exists
-        if (ws) {
+        try {
             ws.send(JSON.stringify({
                 code: status_code,
                 data: data
             }));
+        } catch(wsError) {
+            console.log("Error in makeWsResponse")
+            console.log(wsError.message);
         }
     }
 
