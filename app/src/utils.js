@@ -41,10 +41,13 @@ class Utils {
     // make a fixed format websocket response to frontend
     // example: { "code": 401, "data": "Unauthorized" }
     static makeWsResponse(ws, status_code, data) {
-        ws.send(JSON.stringify({
-            code: status_code,
-            data: data
-        }));
+        // send message only if websocket exists
+        if (ws) {
+            ws.send(JSON.stringify({
+                code: status_code,
+                data: data
+            }));
+        }
     }
 
     // validate parameters
@@ -654,23 +657,27 @@ class Utils {
     }
 
     static async assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, order) {
-        // set driverStatus
-        driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
-        // delete location from DriverLocation collection
-        await driverLocation.deleteOne({
-            driverId: driverId
-        });
-        // create order assignment history, which will be used to avoid to reassign an order to a driver who rejected the order before
-        await orderAssignHistory.create({
-            driverId: driverId,
-            orderId: order.id
-        });
-        // reassign the order if driver does not accept in 2 mins
-        driverWs.timer = setTimeout(() => {
-            Utils.driverTimeoutOrder(req, driverWs, driverId, order);
-        }, 120000);
-        // notify driver a new order received
-        Utils.makeWsResponse(driverWs, 201, order)
+        try {
+            // set driverStatus
+            driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
+            // delete location from DriverLocation collection
+            await driverLocation.deleteOne({
+                driverId: driverId
+            });
+            // create order assignment history, which will be used to avoid to reassign an order to a driver who rejected the order before
+            await orderAssignHistory.create({
+                driverId: driverId,
+                orderId: order.id
+            });
+            // reassign the order if driver does not accept in 2 mins
+            driverWs.timer = setTimeout(() => {
+                Utils.driverTimeoutOrder(req, driverWs, driverId, order);
+            }, 120000);
+            // notify driver a new order received
+            Utils.makeWsResponse(driverWs, 201, order)
+        } catch (error) {
+            console.warn("Some error happends in assignPendingAcceptanceOrderToDriver")
+        }
     }
 
     static async assignSecondOrderToDriver(req, driverWs, driverId, order) {
