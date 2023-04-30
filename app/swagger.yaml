@@ -1353,6 +1353,19 @@ paths:
               example:
                 code: 401
                 data: Please log in
+        '402':
+          description: some issues that make the driver can not pick up current order
+          content: 
+            application/json:
+              examples:
+                  No avaliable pending pickup (status == 'ACCEPTED') orders:
+                    value:
+                      code: 402
+                      data: No avaliable pending pickup orders
+                  The driver is too far from the restaurant (>= 0.1 mile):
+                    value:
+                      code: 402
+                      data: You are too far from the restaurant (>= 0.1 mile)
         '403':
           description: Driver's websocket disconnected
           content:
@@ -1429,6 +1442,13 @@ paths:
               example:
                 code: 401
                 data: Please log in
+        '402':
+          description: The driver is too far from the customer (>= 0.1 mile)
+          content: 
+            application/json:
+              example:
+                code: 402
+                data: You are too far from the customer (>= 0.1 mile)
         '403':
           description: Driver's websocket disconnected
           content:
