@@ -23,6 +23,7 @@ var Utils = require('../../utils');
 var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
+const duplicate = require("duplicate-requests").default;
 
 // get sign up restaurant email verification code
 router.get('/emailCode', getRestaurantEmailCodeValidator, async function(req, res) {
@@ -324,6 +325,20 @@ router.post('/order', Utils.restaurantLoginRequired, postDeliveryOrderValidator,
   });
 });
 
+// cache pay order function, make sure an order should only be paid once
+router.use(duplicate({
+  expiration: "1m",
+  property: "id",
+  prefix: "restaurant.order.pay",
+  errorHandling: {
+    statusCode: 429, // The status code to send if request is duplicated
+    json: {
+      code: 429,
+      data: "Duplicated request received"
+    } // Javascript plain object to send if request is duplicated
+  },
+}));
+
 router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderValidator, async function(req, res) {
   // compose customer address and restaurant address
   const customerAddr = req.order.customerStreet + ", " + req.order.customerCity + ", " + req.order.customerState + ", " + req.order.customerZipCode;
@@ -366,9 +381,14 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
         status: OrderStatus.CANCELLED
       }
     });
-    return Utils.makeResponse(res, 404, "No avaliable drivers near you, order got cancelled");
+    return Utils.makeResponse(res, 404, "Avaliable driver's are too far from you, order got cancelled");
   }
+
+  // if the driver's location is in the database but the driver's websocket is disconnected
   driverWsClient = Utils.getDriverWsClient(req, driver.id);
+  if (!driverWsClient) {
+    return Utils.makeResponse(res, 404, "Avaliable driver's websocket disconnected, order got cancelled");
+  }
 
   // make and process the order payment
   let paymentResult;
@@ -435,6 +455,7 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
       }
     });
     // send order to driver
+    // TODO: bug when driverWsClient is null
     await Utils.assignPendingAcceptanceOrderToDriver(req, driverWsClient, driver.id, order);
   } else {
     // confirm payment from restaurant
@@ -487,6 +508,5 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
     orderId: order.id
   });
 });
-
 
 module.exports = router;

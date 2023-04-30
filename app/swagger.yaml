@@ -1945,6 +1945,7 @@ components:
             page:
               type: number
               description: current page number
+              example: 1
     RestaurantOrderSummary:
       description: history orders item object
       type: object
@@ -2145,6 +2146,7 @@ components:
             page:
               type: number
               description: current page number
+              example: 1
     DriverOrderSummary:
       description: history orders item object
       type: object

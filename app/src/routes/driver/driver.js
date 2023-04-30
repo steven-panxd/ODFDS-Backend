@@ -360,26 +360,23 @@ router.ws('/location', async function(ws, req) {
   // when client (frontend) disconnect with the server
   ws.on('close', async function close(code, reason) {
     if (req.user) {
-      if (ws.driverStatus == Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE) {
-        // do something if there is a pending acceptance order for the driver (reassignment)
-        const order = await db.deliveryOrder.findFirst({
-          where: {
-            driverId: req.user.id,
-            status: OrderStatus.ASSIGNED
-          }
-        });
-        // if an driver rejects an order first, and the suddenly disconnect with the backend, 
-        // the order.driverId will be assigned to another order but the old driver's ws.driverStatus may remain PENDING_ORDER_ACCEPTANCE
-        // hence, we need to check if order is null
-        // if it is null, we do nothing
-        if (order) {
-          await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
+      // delete the location info on mongoDB database when disconnected
+      await driverLocation.deleteMany({
+        driverId: req.user.id
+      });
+      // do something if there is a pending acceptance order for the driver (reassignment)
+      const order = await db.deliveryOrder.findFirst({
+        where: {
+          driverId: req.user.id,
+          status: OrderStatus.ASSIGNED
         }
-      } else if (ws.driverStatus == Utils.DriverStatus.WAITTING_ORDER) {
-        // delete the location info on mongoDB database when disconnected
-        await driverLocation.deleteMany({
-          driverId: req.user.id
-        });
+      });
+      // if an driver rejects an order first, and the suddenly disconnect with the backend, 
+      // the order.driverId will be assigned to another order but the old driver's ws.driverStatus may remain PENDING_ORDER_ACCEPTANCE
+      // hence, we need to check if order is null
+      // if it is null, we do nothing
+      if (order) {
+        await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
       }
       // delete the stored client websocket instance when disconnected
       Utils.removeDriverWsClient(req, req.user.id);
