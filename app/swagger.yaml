@@ -1591,7 +1591,65 @@ paths:
                       field: image
                       value: xxx.exe
                       message: Only .png, .jpg and .jpeg format allowed!
-
+  /common/validateAddress:
+    get:
+      description: validate an address through google maps api
+      summary: validate an address string
+      tags:
+      - Common
+      parameters:
+      - in: query
+        name: street
+        schema: 
+          type: string
+          example: One Washington Sq
+        required: true
+      - in: query
+        name: city
+        schema: 
+          type: string
+          example: San Jose
+        required: true
+      - in: query
+        name: state
+        schema: 
+          type: string
+          example: CA
+        required: true
+      - in: query
+        name: zipCode
+        schema: 
+          type: string
+          example: 95192
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: succeed
+        '402':
+          description: Inferred an address from Google Maps API
+          content:
+            application/json:
+              example:
+                code: 401
+                data:
+                  street: "One Washington Sq"
+                  city: "San Jose"
+                  state: "CA"
+                  zipCode: "95192"
+        '404':
+          description: Can not infer an address
+          content:
+            application/json:
+              example:
+                code: 404
+                data: "Google maps API can not infer an address"
 components:
   schemas:
     GeneralResponse:

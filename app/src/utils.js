@@ -999,18 +999,6 @@ class Utils {
     }
 
     static async validateAddress(street, city, state, zipCode, timeout = 10000) {       
-        // Run request
-        // const response = await addressvalidationClient.validateAddress({
-        //     address: {
-        //         regionCode: 'US',
-        //         addressLines: [street, city, state, zipCode]
-        //     },
-        //     options: {
-        //         timeout: timeout
-        //     }
-        // });
-        // console.log(response);
-
         const inputAddress = street + ", " + city + ", " + state + " " + zipCode;
 
         let returnData = {

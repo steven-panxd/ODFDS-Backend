@@ -34,7 +34,7 @@ const postRestaurantSignUpValidator = [
   body('street').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
   body('city').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
   body('state').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
-  body('zipCode').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
+  body('zipCode').exists({ checkFalsy: true }).withMessage("Please select restaurant location").isInt().withMessage("Invalid zip code, it must be 5 digits").isLength({min: 5, max:5}).withMessage("Invalid zip code, it must be 5 digits"),
   body('code').exists({ checkFalsy: true }).withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").bail().custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "Restaurant"});
     if (!codeExist) {
@@ -72,7 +72,7 @@ const patchRestaurantProfileValidator = [
   body('street').optional(),
   body('city').optional(),
   body('state').optional(),
-  body('zipCode').optional(),
+  body('zipCode').optional().isInt().withMessage("Invalid zip code, it must be 5 digits").isLength({min: 5, max:5}).withMessage("Invalid zip code, it must be 5 digits"),
   // body('latitude').optional().isDecimal().withMessage('Invalid latitude'),
   // body('longtitude').optional().isDecimal().withMessage('Invalid longtitude'),
   Utils.validate
@@ -143,7 +143,7 @@ const getEstimatedValidator = [
   body("street").exists({ checkFalsy: true }).withMessage("Please input street"),
   body("city").exists({ checkFalsy: true }).withMessage("Please input city"),
   body("state").exists({ checkFalsy: true }).withMessage("Please input state"),
-  body("zipCode").exists({ checkFalsy: true }).withMessage("Please input zip code"),
+  body("zipCode").exists({ checkFalsy: true }).withMessage("Please input zip code").isInt().withMessage("Invalid zip code, it must be 5 digits").isLength({min: 5, max:5}).withMessage("Invalid zip code, it must be 5 digits"),
   Utils.validate
 ]
 
@@ -151,7 +151,7 @@ const postDeliveryOrderValidator = [
   body("customerStreet").exists({ checkFalsy: true }).withMessage("Please input customer's street"),
   body("customerCity").exists({ checkFalsy: true }).withMessage("Please input customer's city"),
   body("customerState").exists({ checkFalsy: true }).withMessage("Please input customer's state"),
-  body("customerZipCode").exists({ checkFalsy: true }).withMessage("Please input customer's zip code"),
+  body("customerZipCode").exists({ checkFalsy: true }).withMessage("Please input customer's zip code").isInt().withMessage("Invalid zip code, it must be 5 digits").isLength({min: 5, max:5}).withMessage("Invalid zip code, it must be 5 digits"),
   body("customerName").exists({ checkFalsy: true }).withMessage("Please input customer's name"),
   body("customerEmail").exists({ checkFalsy: true }).withMessage("Please input customer's email address").isEmail().withMessage("Invalid customer's email address"),
   body("customerPhone").exists({ checkFalsy: true }).withMessage("Please input customer's phone number").isMobilePhone().withMessage("Invalid customer's phone number"),
