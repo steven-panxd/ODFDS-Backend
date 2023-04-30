@@ -654,12 +654,12 @@ class Utils {
     }
 
     static async assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, order) {
-        // delete old reported location
+        // set driverStatus
+        driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
+        // delete location from DriverLocation collection
         await driverLocation.deleteOne({
             driverId: driverId
         });
-        // set driverStatus
-        driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
         // create order assignment history, which will be used to avoid to reassign an order to a driver who rejected the order before
         await orderAssignHistory.create({
             driverId: driverId,
@@ -783,7 +783,6 @@ class Utils {
         }
 
         if (paymentResult.status != "succeeded") {
-            console.log(paymentResult);
             throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
         }
         
