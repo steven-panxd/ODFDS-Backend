@@ -1046,11 +1046,10 @@ class Utils {
             }
         }
 
+        // only use the first prediction
         const predictions = response.data.predictions;
-        console.log(predictions);
-
         const prediction = predictions[0];
-        
+
         const predictionPlaceIdResponse = await googleMapsClient.placeDetails({
             params: {
                 place_id: prediction.place_id,
