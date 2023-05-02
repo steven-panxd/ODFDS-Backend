@@ -373,7 +373,7 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
   const nearestDriverLocation = driver.latitude + ", " + driver.longitude;
   const result1 = await Utils.calculateDistance(nearestDriverLocation, restaurantAddr); // distance and duration between nearest driver and restaurant
   const result2 = await Utils.calculateDistance(restaurantAddr, customerAddr);  // distance and duration between restaurant and customer
-  if (!(result1.duration && result2.duration)) {  // if there is no route between them, drivers are too far from the restaurant, cancel the order
+  if (result1.duration == null || result2.duration == null) {  // if there is no route between them, drivers are too far from the restaurant, cancel the order
     await db.deliveryOrder.update({
       where: {
         id: req.order.id
