@@ -335,7 +335,7 @@ router.use(duplicate({
     statusCode: 429, // The status code to send if request is duplicated
     json: {
       code: 429,
-      data: "Duplicated request received"
+      data: "Duplicated requests received in a short time, please try again later",
     } // Javascript plain object to send if request is duplicated
   },
 }));

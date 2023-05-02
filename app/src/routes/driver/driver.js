@@ -260,13 +260,13 @@ router.get("/order/pickup", Utils.driverLoginRequired, async function(req, res) 
   }
 
   // // check driver's distance from restaurant's address
-  // const driverLocation = await Utils.getDriverOnRouteLocation(req.user.id);
-  // const driverAddress = driverLocation.latitude + ", " + driverLocation.longitude;
-  // const restaurantAddress =  orders[0].restaurant.street + ", " + orders[0].restaurant.city + ", " + orders[0].restaurant.state + " " + orders[0].restaurant.zipCode;
-  // const result = await Utils.calculateDistance(driverAddress, restaurantAddress);
-  // if (result.distance >= 160) {
-  //   return Utils.makeResponse(res, 402, "You are too far from the restaurant (>= 0.1 mile)");
-  // }
+  const driverLocation = await Utils.getDriverOnRouteLocation(req.user.id);
+  const driverAddress = driverLocation.latitude + ", " + driverLocation.longitude;
+  const restaurantAddress =  orders[0].restaurant.street + ", " + orders[0].restaurant.city + ", " + orders[0].restaurant.state + " " + orders[0].restaurant.zipCode;
+  const result = await Utils.calculateDistance(driverAddress, restaurantAddress);
+  if (result.distance != null && result.distance >= 160) {
+    return Utils.makeResponse(res, 402, "You are too far from the restaurant (>= 0.1 mile)");
+  }
 
   await Utils.driverPickUpOrder(req, driverWs, req.user.id);
   Utils.makeResponse(res, 200, "Succeed");
@@ -279,13 +279,13 @@ router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValida
   }
 
   // // check driver's distance from customer's address
-  // const driverLocation = await Utils.getDriverOnRouteLocation(req.user.id);
-  // const driverAddress = driverLocation.latitude + ", " + driverLocation.longitude;
-  // const customerAddress =  req.order.customerStreet + ", " + req.order.customerCity + ", " + req.order.customerState + " " + req.order.customerZipCode;
-  // const result = await Utils.calculateDistance(driverAddress, customerAddress);
-  // if (result.distance >= 160) {
-  //   return Utils.makeResponse(res, 402, "You are too far from the customer (>= 0.1 mile)");
-  // }
+  const driverLocation = await Utils.getDriverOnRouteLocation(req.user.id);
+  const driverAddress = driverLocation.latitude + ", " + driverLocation.longitude;
+  const customerAddress =  req.order.customerStreet + ", " + req.order.customerCity + ", " + req.order.customerState + " " + req.order.customerZipCode;
+  const result = await Utils.calculateDistance(driverAddress, customerAddress);
+  if (result.distance != null && result.distance >= 160) {
+    return Utils.makeResponse(res, 402, "You are too far from the customer (>= 0.1 mile)");
+  }
   
   try {
     await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
