@@ -245,7 +245,7 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
       }
     },
     skip: skip,
-    take: pageSize,
+    take: pageSize
   });
   
   // remove foreign key fields
@@ -259,6 +259,7 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
     pageSize: pageSize,
     totalPage: totalPage,
     page: page,
+    allCount: allCount
   });
 });
 
