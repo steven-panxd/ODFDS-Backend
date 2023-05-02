@@ -7,8 +7,10 @@ var { PrismaClient, OrderStatus } = require('@prisma/client');
 const db = new PrismaClient()
 
 const { Client } = require("@googlemaps/google-maps-services-js");
-const encodePathUtil = require("@googlemaps/google-maps-services-js/dist/util");
 const googleMapsClient = new Client({});
+const { AddressValidationClient } = require('@googlemaps/addressvalidation');
+const addressvalidationClient = new AddressValidationClient({});
+const encodePathUtil = require("@googlemaps/google-maps-services-js/dist/util");
 
 var driverLocation = require("../mongoose/schema/driverLocation");
 var driverOnRoute = require('../mongoose/schema/driverOnRoute');
@@ -38,10 +40,16 @@ class Utils {
     // make a fixed format websocket response to frontend
     // example: { "code": 401, "data": "Unauthorized" }
     static makeWsResponse(ws, status_code, data) {
-        ws.send(JSON.stringify({
-            code: status_code,
-            data: data
-        }));
+        // send message only if websocket exists
+        try {
+            ws.send(JSON.stringify({
+                code: status_code,
+                data: data
+            }));
+        } catch(wsError) {
+            console.log("Error in makeWsResponse")
+            console.log(wsError.message);
+        }
     }
 
     // validate parameters
@@ -534,31 +542,31 @@ class Utils {
 
     // check driver order status
     static async checkDriverStatus(req, driverWs, driverId) {
-        // const pendingAcceptOrders = await db.deliveryOrder.findFirst({
-        //     where: {
-        //         driverId: driverId,
-        //         status: OrderStatus.ASSIGNED
-        //     },
-        //     include: {
-        //         restaurant: {
-        //             select: {
-        //                 id: true,
-        //                 street: true,
-        //                 city: true,
-        //                 state: true,
-        //                 zipCode: true,
-        //                 phone: true,
-        //                 name: true,
-        //                 email: true
-        //             }
-        //         }
-        //     }
-        // });
+        const pendingAcceptOrders = await db.deliveryOrder.findFirst({
+            where: {
+                driverId: driverId,
+                status: OrderStatus.ASSIGNED
+            },
+            include: {
+                restaurant: {
+                    select: {
+                        id: true,
+                        street: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                        phone: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
 
-        // // if the driver has pending acceptance order
-        // if (pendingAcceptOrders) {
-        //     return await Utils.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
-        // }
+        // if the driver has pending acceptance order
+        if (pendingAcceptOrders) {
+            return await Utils.assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, pendingAcceptOrders);
+        }
 
         const inPickUpOrders = await db.deliveryOrder.findMany({
             where: {
@@ -651,23 +659,33 @@ class Utils {
     }
 
     static async assignPendingAcceptanceOrderToDriver(req, driverWs, driverId, order) {
-        // delete old reported location
+        try {
+            // set driverStatus
+            driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
+        } catch(error) {
+            console.warn("Some error 1 happends in assignPendingAcceptanceOrderToDriver")
+        }
+        
+        // delete location from DriverLocation collection
         await driverLocation.deleteOne({
             driverId: driverId
         });
-        // set driverStatus
-        driverWs.driverStatus = Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE;
         // create order assignment history, which will be used to avoid to reassign an order to a driver who rejected the order before
         await orderAssignHistory.create({
             driverId: driverId,
             orderId: order.id
         });
-        // reassign the order if driver does not accept in 2 mins
-        driverWs.timer = setTimeout(() => {
-            Utils.driverTimeoutOrder(req, driverWs, driverId, order);
-        }, 120000);
-        // notify driver a new order received
-        Utils.makeWsResponse(driverWs, 201, order)
+
+        try {
+            // reassign the order if driver does not accept in 2 mins
+            driverWs.timer = setTimeout(() => {
+                Utils.driverTimeoutOrder(req, driverWs, driverId, order);
+            }, 120000);
+            // notify driver a new order received
+            Utils.makeWsResponse(driverWs, 201, order)
+        } catch (error) {
+            console.warn("Some error 2 happends in assignPendingAcceptanceOrderToDriver")
+        }
     }
 
     static async assignSecondOrderToDriver(req, driverWs, driverId, order) {
@@ -780,7 +798,6 @@ class Utils {
         }
 
         if (paymentResult.status != "succeeded") {
-            console.log(paymentResult);
             throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
         }
         
@@ -994,6 +1011,103 @@ class Utils {
     static removeDriverWsClient(req, driverId) {
         const clients = req.app.get("wsDriverClients");
         clients.delete(driverId);
+    }
+
+    static async validateAddress(street, city, state, zipCode, timeout = 10000) {       
+        const inputAddress = street + ", " + city + ", " + state + " " + zipCode;
+
+        let returnData = {
+            pass : true,
+            inferred: false,
+            street: street,
+            city: city,
+            state: state,
+            zipCode: zipCode,
+            message: ""
+        }
+
+        const response = await googleMapsClient.placeAutocomplete({
+            params: {
+                input: inputAddress,
+                components: ["country:us"],
+                key: process.env.GOOGLE_MAPS_API_KEY,
+                timeout: timeout
+            },
+        });
+
+        if(response.data.status != "OK") {
+            if (response.data.status == "ZERO_RESULTS") {
+                returnData.inferred = false;
+                returnData.pass = false;
+                returnData.message = "Google maps API can not validate and infer this address"
+                return returnData;
+            } else {
+                throw Error("Google maps error, can not validate address"); 
+            }
+        }
+
+        // only use the first prediction
+        const predictions = response.data.predictions;
+        const prediction = predictions[0];
+
+        const predictionPlaceIdResponse = await googleMapsClient.placeDetails({
+            params: {
+                place_id: prediction.place_id,
+                key: process.env.GOOGLE_MAPS_API_KEY
+            }
+        });
+
+        if (predictionPlaceIdResponse.data.status != "OK") {
+            throw Error("Google maps error, can not validate address"); 
+        }
+
+        const predictionPlaceIdAddress = predictionPlaceIdResponse.data.result.formatted_address;
+
+        const predictionArray = predictionPlaceIdAddress.split(", ");
+        let inferredStreet = null;
+        let inferredCity = null;
+        let inferredState = null;
+        let inferredZipCode = null;
+        if (predictionArray.length == 3) {
+            //[ 'San Jose', 'CA', 'USA' ]
+            //[ 'San Jose', 'CA 95112', 'USA' ]
+            // not a detailed address
+            returnData.inferred = false;
+            returnData.pass = false;
+            returnData.message = "Google maps API can not infer to a specific address"
+            return returnData;
+        } else if (predictionArray.length == 4) {
+            // [ '449 San Jose Avenue', 'San Jose', 'CA 95125', 'USA' ]
+            // [ '449 San Jose Avenue', 'San Jose', 'CA', 'USA' ]
+            inferredStreet = predictionArray[0];
+            inferredCity = predictionArray[1];
+            const cityZipCodeArray = predictionArray[2].split(" ");
+            inferredState = cityZipCodeArray[0];
+            if (cityZipCodeArray.length > 1) {
+                inferredZipCode = cityZipCodeArray[1];
+            }
+        } else {
+            // [ 'Antioch Baptist Church', 'East Julian Street', 'San Jose', 'CA 95112', 'USA' ]
+            // [ 'Antioch Baptist Church', 'East Julian Street', 'San Jose', 'CA', 'USA' ]
+            inferredStreet = predictionArray[0] + " " + predictionArray[1];
+            inferredCity = predictionArray[2];
+            const cityZipCodeArray = predictionArray[3].split(" ");
+            inferredState = cityZipCodeArray[0];
+            if (cityZipCodeArray.length > 1) {
+                inferredZipCode = cityZipCodeArray[1];
+            }
+        }
+
+        if (inferredStreet != returnData.street || inferredCity != returnData.city || inferredState != returnData.state || inferredZipCode != returnData.zipCode) {
+            returnData.street = inferredStreet;
+            returnData.city = inferredCity;
+            returnData.state = inferredState;
+            returnData.zipCode = inferredZipCode;
+            returnData.pass = false;
+            returnData.inferred = true;
+        }
+
+        return returnData;     
     }
 }
 

@@ -2,6 +2,8 @@ var express = require('express');
 var router = express.Router();
 var fs = require('fs');
 
+var { validateAddressValidator } = require("./validator");
+
 var uploadedImage = require('../../../mongoose/schema/uploadedImage'); 
 var Utils = require('../../utils');
 
@@ -74,5 +76,36 @@ router.get("/file/:fileName", async function(req, res) {
     }
     res.sendFile(mongoData.path, { root: "./" });
 });
+
+// validate address
+router.get("/validateAddress", validateAddressValidator, async function(req, res) {
+    const street = req.query.street;
+    const city = req.query.city;
+    const state = req.query.state;
+    const zipCode = req.query.zipCode;
+  
+    const result = await Utils.validateAddress(street, city, state, zipCode);
+  
+    if (result.pass) {
+        // pass address checks
+        return Utils.makeResponse(res, 200, "succeed");
+    } else {
+        if (result.inferred) {
+            if (result.zipCode) {
+                // inferred address succeed
+                delete result.message;
+                delete result.pass;
+                delete result.inferred;
+                return Utils.makeResponse(res, 402, result);
+            } else {
+                // inferred addres without zipcode
+                return Utils.makeResponse(res, 404, "Google maps API can not infer an address with a valid zipcode");
+            }
+        } else {
+            // can not infer a valid address
+            return Utils.makeResponse(res, 404, "Google maps API can not validate and infer this address");
+      }
+    }
+  });
 
 module.exports = router;

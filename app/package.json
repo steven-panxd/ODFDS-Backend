@@ -8,6 +8,7 @@
     "test": "mocha --slow 0"
   },
   "dependencies": {
+    "@googlemaps/addressvalidation": "^1.0.2",
     "@googlemaps/google-maps-services-js": "^3.3.28",
     "@prisma/client": "^4.10.1",
     "async-exit-hook": "^2.0.1",
@@ -15,6 +16,7 @@
     "cors": "^2.8.5",
     "debug": "~2.6.9",
     "dotenv": "^10.0.0",
+    "duplicate-requests": "^1.1.2",
     "express": "~4.16.1",
     "express-async-errors": "^3.1.1",
     "express-fileupload": "^1.4.0",

@@ -1353,6 +1353,19 @@ paths:
               example:
                 code: 401
                 data: Please log in
+        '402':
+          description: some issues that make the driver can not pick up current order
+          content: 
+            application/json:
+              examples:
+                  No avaliable pending pickup (status == 'ACCEPTED') orders:
+                    value:
+                      code: 402
+                      data: No avaliable pending pickup orders
+                  The driver is too far from the restaurant (>= 0.1 mile):
+                    value:
+                      code: 402
+                      data: You are too far from the restaurant (>= 0.1 mile)
         '403':
           description: Driver's websocket disconnected
           content:
@@ -1429,6 +1442,13 @@ paths:
               example:
                 code: 401
                 data: Please log in
+        '402':
+          description: The driver is too far from the customer (>= 0.1 mile)
+          content: 
+            application/json:
+              example:
+                code: 402
+                data: You are too far from the customer (>= 0.1 mile)
         '403':
           description: Driver's websocket disconnected
           content:
@@ -1571,7 +1591,65 @@ paths:
                       field: image
                       value: xxx.exe
                       message: Only .png, .jpg and .jpeg format allowed!
-
+  /common/validateAddress:
+    get:
+      description: validate an address through google maps api
+      summary: validate an address string
+      tags:
+      - Common
+      parameters:
+      - in: query
+        name: street
+        schema: 
+          type: string
+          example: One Washington Sq
+        required: true
+      - in: query
+        name: city
+        schema: 
+          type: string
+          example: San Jose
+        required: true
+      - in: query
+        name: state
+        schema: 
+          type: string
+          example: CA
+        required: true
+      - in: query
+        name: zipCode
+        schema: 
+          type: string
+          example: 95192
+        required: true
+      responses:
+        '200':
+          description: Succeed
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/GeneralResponse'
+              example:
+                code: 200
+                data: succeed
+        '402':
+          description: Inferred an address from Google Maps API
+          content:
+            application/json:
+              example:
+                code: 401
+                data:
+                  street: "One Washington Sq"
+                  city: "San Jose"
+                  state: "CA"
+                  zipCode: "95192"
+        '404':
+          description: Can not infer an address
+          content:
+            application/json:
+              example:
+                code: 404
+                data: "Google maps API can not infer an address"
 components:
   schemas:
     GeneralResponse:
@@ -1945,6 +2023,7 @@ components:
             page:
               type: number
               description: current page number
+              example: 1
     RestaurantOrderSummary:
       description: history orders item object
       type: object
@@ -2145,6 +2224,7 @@ components:
             page:
               type: number
               description: current page number
+              example: 1
     DriverOrderSummary:
       description: history orders item object
       type: object

@@ -215,12 +215,9 @@ router.get('/orders', Utils.driverLoginRequired, getDriverOrdersValidator, async
     pageSize: pageSize,
     totalPage: totalPage,
     page: page,
+    allCount: allCount
   });
 });
-
-// router.get("/order", Utils.driverLoginRequired, getOrderDetailValidator, async function(req, res) {
-//   Utils.makeResponse(res, 200, req.order);
-// });
 
 router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrderValidator, async function(req, res) {
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
@@ -240,22 +237,36 @@ router.get("/order/reject", Utils.driverLoginRequired, driverAcceptOrRejectOrder
   Utils.makeResponse(res, 200, "Succeed");
 });
 
-router.get("/order/pickUp", Utils.driverLoginRequired, async function(req, res) {
+router.get("/order/pickup", Utils.driverLoginRequired, async function(req, res) {
   const orders = await db.deliveryOrder.findMany({
     where: {
       driverId: req.user.id,
       status: OrderStatus.ACCEPTED
+    },
+    include: {
+      restaurant: true
     }
   });
 
-  if (!orders) {
-    return Utils.makeResponse(res, 401, "No avaliable pending pickup orders");
+  // if there is no ACCEPTED orders
+  if (orders.length == 0) {
+    return Utils.makeResponse(res, 402, "No avaliable pending pickup orders");
   }
 
+  // if the driver's websocket is disconnected
   const driverWs = Utils.getDriverWsClient(req, req.user.id);
   if (!driverWs) {
     return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
   }
+
+  // // check driver's distance from restaurant's address
+  // const driverLocation = await Utils.getDriverOnRouteLocation(req.user.id);
+  // const driverAddress = driverLocation.latitude + ", " + driverLocation.longitude;
+  // const restaurantAddress =  orders[0].restaurant.street + ", " + orders[0].restaurant.city + ", " + orders[0].restaurant.state + " " + orders[0].restaurant.zipCode;
+  // const result = await Utils.calculateDistance(driverAddress, restaurantAddress);
+  // if (result.distance >= 160) {
+  //   return Utils.makeResponse(res, 402, "You are too far from the restaurant (>= 0.1 mile)");
+  // }
 
   await Utils.driverPickUpOrder(req, driverWs, req.user.id);
   Utils.makeResponse(res, 200, "Succeed");
@@ -266,6 +277,15 @@ router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValida
   if (!driverWs) {
     return Utils.makeResponse(res, 403, "Driver's websocket is disconnected");
   }
+
+  // // check driver's distance from customer's address
+  // const driverLocation = await Utils.getDriverOnRouteLocation(req.user.id);
+  // const driverAddress = driverLocation.latitude + ", " + driverLocation.longitude;
+  // const customerAddress =  req.order.customerStreet + ", " + req.order.customerCity + ", " + req.order.customerState + " " + req.order.customerZipCode;
+  // const result = await Utils.calculateDistance(driverAddress, customerAddress);
+  // if (result.distance >= 160) {
+  //   return Utils.makeResponse(res, 402, "You are too far from the customer (>= 0.1 mile)");
+  // }
   
   try {
     await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
@@ -360,26 +380,23 @@ router.ws('/location', async function(ws, req) {
   // when client (frontend) disconnect with the server
   ws.on('close', async function close(code, reason) {
     if (req.user) {
-      if (ws.driverStatus == Utils.DriverStatus.PENDING_ORDER_ACCEPTANCE) {
-        // do something if there is a pending acceptance order for the driver (reassignment)
-        const order = await db.deliveryOrder.findFirst({
-          where: {
-            driverId: req.user.id,
-            status: OrderStatus.ASSIGNED
-          }
-        });
-        // if an driver rejects an order first, and the suddenly disconnect with the backend, 
-        // the order.driverId will be assigned to another order but the old driver's ws.driverStatus may remain PENDING_ORDER_ACCEPTANCE
-        // hence, we need to check if order is null
-        // if it is null, we do nothing
-        if (order) {
-          await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
+      // delete the location info on mongoDB database when disconnected
+      await driverLocation.deleteMany({
+        driverId: req.user.id
+      });
+      // do something if there is a pending acceptance order for the driver (reassignment)
+      const order = await db.deliveryOrder.findFirst({
+        where: {
+          driverId: req.user.id,
+          status: OrderStatus.ASSIGNED
         }
-      } else if (ws.driverStatus == Utils.DriverStatus.WAITTING_ORDER) {
-        // delete the location info on mongoDB database when disconnected
-        await driverLocation.deleteMany({
-          driverId: req.user.id
-        });
+      });
+      // if an driver rejects an order first, and the suddenly disconnect with the backend, 
+      // the order.driverId will be assigned to another order but the old driver's ws.driverStatus may remain PENDING_ORDER_ACCEPTANCE
+      // hence, we need to check if order is null
+      // if it is null, we do nothing
+      if (order) {
+        await Utils.driverTimeoutOrder(req, ws, req.user.id, order);
       }
       // delete the stored client websocket instance when disconnected
       Utils.removeDriverWsClient(req, req.user.id);
