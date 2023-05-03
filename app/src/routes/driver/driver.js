@@ -224,7 +224,16 @@ router.get("/order/accept", Utils.driverLoginRequired, driverAcceptOrRejectOrder
   if (!driverWs) {
     return Utils.makeResponse(res, 403, "Driver's websocket disconnected");
   }
-  await Utils.driverAcceptOrder(req, driverWs, req.user.id, req.order);
+
+  try {
+    await Utils.driverAcceptOrder(req, driverWs, req.user.id, req.order);
+  } catch(error) {
+    // if payment failed, order got cancelled
+    await Utils.cancelOrder(req.order, "Your order #" + req.order.id + " is cancelled due to payment error. " + error.message ? error.message : "");
+    await Utils.removeDriverFromAnyOrder(driverWs, req.user.id);
+    return Utils.makeResponse(res, 402, error.message ? error.message : "Unknown Error happened, order got cancelled");
+  }
+  
   Utils.makeResponse(res, 200, "Succeed");
 });
 
@@ -290,7 +299,7 @@ router.get("/order/deliver", Utils.driverLoginRequired, driverDeliverOrderValida
   try {
     await Utils.driverDeliverOrder(req, driverWs, req.user.id, req.order);
   } catch(error) {
-    Utils.makeResponse(res, 500, error.message);
+    return Utils.makeResponse(res, 402, "You can not deliver this order because we can not pay money to your bank account. " + error.message ? error.message : "");
   }
   
   Utils.makeResponse(res, 200, "Succeed");
