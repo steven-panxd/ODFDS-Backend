@@ -73,7 +73,7 @@ class StripeWrapper{
     //payment methods using setup intents
     static async createSetupIntent(customerId){
         return await stripe.setupIntents.create({
-            payment_method_types: ['card', 'us_bank_account'],
+            payment_method_types: ['card'],
             usage: "on_session",
             customer: customerId
         })
@@ -122,7 +122,7 @@ class StripeWrapper{
         return await stripe.paymentIntents.create({
             amount: amountCents,
             currency: 'usd',
-            payment_method_types: ['card', 'us_bank_account'],
+            payment_method_types: ['card'],
             customer: profileData.stripeCustomerId,
             payment_method: paymentMethodId,
             receipt_email: profileData.email

@@ -459,17 +459,18 @@ router.post("/order/pay", Utils.restaurantLoginRequired, postPayDeliveryOrderVal
     // TODO: bug when driverWsClient is null
     await Utils.assignPendingAcceptanceOrderToDriver(req, driverWsClient, driver.id, order);
   } else {
+    order = await db.deliveryOrder.findUnique({where: {id: req.body.orderId}});
     // confirm payment from restaurant
     try {
         paymentResult = await StripeWrapper.confirmPaymentIntent(paymentResult.id);
     } catch (stripeError) {
-        console.log(stripeError);
-        throw Error("Stripe Error: " + stripeError.raw.message);
+        await Utils.cancelOrder(order, "Your order #" + order.id + " is cancelled due to payment error. " + stripeError.raw.message ? stripeError.raw.message : "");
+        return Utils.makeResponse(res, 402, "Payment failed, order got cancelled;")
     }
 
     if (paymentResult.status != "succeeded") {
-        console.log(paymentResult);
-        throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
+        await Utils.cancelOrder(order, "Your order #" + order.id + " is cancelled due to payment error. invalid payment status = " + paymentResult.status);
+        return Utils.makeResponse(res, 402, "Payment failed, order got cancelled;")
     }
     
     order = await db.deliveryOrder.update({

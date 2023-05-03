@@ -63,7 +63,7 @@ router.post("/upload/image", async function(req, res) {
             path: uploadFilePath
         }]);
 
-        Utils.makeResponse(res, 200, "http://" + req.hostname + ":3000" + "/common/file/" + uploadedFilename);     
+        Utils.makeResponse(res, 200, "http://" + req.hostname + ":" + process.env.NODE_DOCKER_PORT + "/common/file/" + uploadedFilename);     
     });
 });
 

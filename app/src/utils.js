@@ -764,6 +764,18 @@ class Utils {
         // clear reassign order timer
         clearTimeout(driverWs.timer);
 
+        // confirm payment from restaurant
+        let paymentResult;
+        try {
+            paymentResult = await StripeWrapper.confirmPaymentIntent(order.stripePaymentIntentId);
+        } catch (stripeError) {
+            throw Error("Stripe Error: " + stripeError.raw.message);
+        }
+
+        if (paymentResult.status != "succeeded") {
+            throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
+        }
+
         // set order status to accepted
         order = await db.deliveryOrder.update({
             where: {
@@ -787,19 +799,6 @@ class Utils {
                 }
             }
         });
-
-        // confirm payment from restaurant
-        let paymentResult;
-        try {
-            paymentResult = await StripeWrapper.confirmPaymentIntent(order.stripePaymentIntentId);
-        } catch (stripeError) {
-            console.log(stripeError);
-            throw Error("Stripe Error: " + stripeError.raw.message);
-        }
-
-        if (paymentResult.status != "succeeded") {
-            throw Error("Stripe Error: invalid payment status = " + paymentResult.status);
-        }
         
         // clear all order assignment history since the order is accepted by a driver
         await orderAssignHistory.deleteMany({
@@ -947,7 +946,7 @@ class Utils {
         });
     }
 
-    static async cancelOrder(order) {
+    static async cancelOrder(order, reason = null) {
         // set order status to cancelled
         await db.deliveryOrder.update({
             where: {
@@ -967,13 +966,14 @@ class Utils {
         try {
             await StripeWrapper.cancelPaymentIntent(order.stripePaymentIntentId);
         } catch (stripeError) {
-            throw Error(stripeError.raw.message);
+            console.log(stripeError);
+            // throw Error(stripeError.raw.message);
         }
         
         // send email notifications to restaurant and customer
         const restaurant = await db.restaurant.findUnique({ where: { id: order.restaurantId } });
-        await Utils.sendEmail(order.customerEmail, "To Customer: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to driver shortage.</h2>");
-        await Utils.sendEmail(restaurant.email, "To Restaurant: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to driver shortage.</h2>");
+        await Utils.sendEmail(order.customerEmail, reason ? reason : "To Customer: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to " + reason ? reason : "driver shortage" + ".</h2>");
+        await Utils.sendEmail(restaurant.email, reason ? reason : "To Restaurant: Your order #" + order.id + " is cancelled", "<h2> Your order is cancelled due to " + reason ? reason : "driver shortage" + ".</h2>");
     }
 
     static async getDriverOnRouteLocation(driverId) {
