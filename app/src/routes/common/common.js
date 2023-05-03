@@ -62,8 +62,11 @@ router.post("/upload/image", async function(req, res) {
             name: uploadedFilename,
             path: uploadFilePath
         }]);
+        
+        // port is NODE_LOCAL_PORT in a docker container, or NODE_DOCKER_PORT in development
+        const port = process.env.NODE_LOCAL_PORT ? process.env.NODE_LOCAL_PORT : process.env.NODE_DOCKER_PORT
 
-        Utils.makeResponse(res, 200, "http://" + req.hostname + ":" + process.env.NODE_DOCKER_PORT + "/common/file/" + uploadedFilename);     
+        Utils.makeResponse(res, 200, "http://" + req.hostname + ":" + port + "/common/file/" + uploadedFilename);     
     });
 });
 
