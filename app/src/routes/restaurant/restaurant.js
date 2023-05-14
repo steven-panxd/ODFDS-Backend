@@ -221,7 +221,10 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
       id: 'desc'
     },
     where: {
-      restaurantId: req.user.id
+      restaurantId: req.user.id,
+      status: {
+        not: OrderStatus.CREATED
+      }
     }
   });
   const totalPage = Math.ceil(allCount / pageSize);
@@ -232,7 +235,10 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
       id: 'desc'
     },
     where: {
-      restaurantId: req.user.id
+      restaurantId: req.user.id,
+      status: {
+        not: OrderStatus.CREATED
+      }
     },
     include: {
       driver: {
