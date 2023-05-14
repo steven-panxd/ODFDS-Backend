@@ -334,6 +334,68 @@ router.post('/order', Utils.restaurantLoginRequired, postDeliveryOrderValidator,
   });
 });
 
+router.get("/avaliableDrivers", Utils.restaurantLoginRequired, async function(req, res) {
+  // count all online drivers in the system
+  const avaliableDriversCount = await driverLocation.find().count();
+  
+  // find nearest top 5 drivers from MongoDB
+  const restaurantCoordinate = await Utils.getLatLng(req.user.street + ", " + req.user.city + ", " + req.user.state + " " + req.user.zipCode);
+  const onlineDriverLocations = await driverLocation.find({
+    location: {
+        $near: {
+            $geometry: {
+                type: "Point",
+                coordinates: [restaurantCoordinate.longitude, restaurantCoordinate.latitude]
+            }
+        }
+    }
+  }).limit(5);
+
+  // return data
+  nearestDriverDistances = []
+  // calculate the precise distance between each driver to the restaurant
+  for (let i = 0; i < onlineDriverLocations.length; i++) {
+    const driverCoordinate = onlineDriverLocations[i].location.coordinates[1] + ", " + onlineDriverLocations[i].location.coordinates[0]
+    const result = await Utils.calculateDistance(restaurantCoordinate, driverCoordinate);
+    nearestDriverDistances.push({
+      "driverId": onlineDriverLocations[i].driverId,
+      "distance": result.distance
+    })
+  }
+  // sort all drivers by distance
+  nearestDriverDistances.sort((a, b) => {
+    return a.distance - b.distance;
+  });
+
+  // filter out driver ids
+  const nearestDriverIds = [];
+  nearestDriverDistances.map(item => {
+    nearestDriverIds.push(item.driverId);
+  })
+  // find driver infos from MySQL
+  const driverInfos = await db.driver.findMany({
+    where: {
+      id: {
+        in: nearestDriverIds
+      }
+    },
+    select: {
+      firstName: true,
+      lastName: true
+    }
+  })
+
+  // attach driver info into return data
+  for (let i = 0; i < nearestDriverDistances.length; i++) {
+    nearestDriverDistances[i].name = driverInfos[i].firstName + " " + driverInfos[i].lastName;
+  }
+  
+  Utils.makeResponse(res, 200, {
+    avaliableDriversCount: avaliableDriversCount,
+    drivers: nearestDriverDistances
+  });
+});
+
 // cache pay order function, make sure an order should only be paid once
 router.use(duplicate({
   expiration: "1m",
