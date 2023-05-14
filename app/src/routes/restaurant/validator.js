@@ -28,7 +28,7 @@ const postRestaurantSignUpValidator = [
       return Promise.reject("Email is already taken, please try another email address");
     }
   }),
-  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, 1 symbol, and 1 digit"),
   body('phone').exists({ checkFalsy: true }).withMessage("Please input phone number").isMobilePhone().withMessage("Invalid phone number"),
   body('name').exists({ checkFalsy: true }).withMessage("Please input restaurant name"),
   body('street').exists({ checkFalsy: true }).withMessage("Please select restaurant location"),
@@ -45,7 +45,7 @@ const postRestaurantSignUpValidator = [
       return Promise.reject("Email verification code is wrong, please try again");
     }
 
-    await codeExist.remove();
+    req.codeExist = codeExist;
   }),
   Utils.validate
 ]
@@ -58,7 +58,7 @@ const postRestaurantLoginValidator = [
     }
     req.user = accountExist;
     }),
-    body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol").bail().custom(async (value, { req }) => {
+    body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, 1 symbol, and 1 digit").bail().custom(async (value, { req }) => {
     if(!Utils.checkPasswordHash(value, req.user.passwordHash)) {
         return Promise.reject("Incorrect password");
     };
@@ -101,7 +101,7 @@ const postRestaurantResetPasswordValidator = [
     }
     req.user = accountExist;
   }),
-  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, and 1 symbol"),
+  body('password').exists({ checkFalsy: true }).withMessage("Please input password").isStrongPassword({ minLength: 6, minLowercase: 1, minUppercase: 1, minSymbols: 1 }).withMessage("Invalid password, a password must contain at least 6 characters with at least 1 lowercase letter, 1 uppercase letter, 1 symbol, and 1 digit"),
   body('code').exists({ checkFalsy: true }).withMessage("Please input your email verification code").isLength({max: 6, min: 6}).withMessage("Invalid email verification code format").custom(async (value, { req }) => {
     const codeExist = await emailValidate.findOne({email: req.body.email, accountType: "RestaurantReset"});
     if (!codeExist) {
@@ -112,7 +112,7 @@ const postRestaurantResetPasswordValidator = [
       return Promise.reject("Email verification code is wrong, please try again");
     }
 
-    await codeExist.remove();
+    req.codeExist = codeExist;
   }),
   Utils.validate
 ]

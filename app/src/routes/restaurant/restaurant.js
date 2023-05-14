@@ -83,6 +83,7 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
     }
   });
   
+  await req.codeExist.remove()
   Utils.makeResponse(res, 200, "Restaurant account created successfully");
 });
 
@@ -171,6 +172,7 @@ router.get('/reset/emailCode', getRestaurantResetPasswordEmailCodeValidator, asy
       accountType: "RestaurantReset",
   }]);
 
+  await req.codeExist.remove()
   Utils.makeResponse(res, 200, "Code sent to your email, it will expire in 5 mins");
 });
 
@@ -219,7 +221,10 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
       id: 'desc'
     },
     where: {
-      restaurantId: req.user.id
+      restaurantId: req.user.id,
+      status: {
+        not: OrderStatus.CREATED
+      }
     }
   });
   const totalPage = Math.ceil(allCount / pageSize);
@@ -230,7 +235,10 @@ router.get('/orders', Utils.restaurantLoginRequired, getRestaurantOrdersValidato
       id: 'desc'
     },
     where: {
-      restaurantId: req.user.id
+      restaurantId: req.user.id,
+      status: {
+        not: OrderStatus.CREATED
+      }
     },
     include: {
       driver: {
@@ -323,6 +331,68 @@ router.post('/order', Utils.restaurantLoginRequired, postDeliveryOrderValidator,
   Utils.makeResponse(res, 200, {
     message: "Order created, pending payment",
     orderId: order.id
+  });
+});
+
+router.get("/avaliableDrivers", Utils.restaurantLoginRequired, async function(req, res) {
+  // count all online drivers in the system
+  const avaliableDriversCount = await driverLocation.find().count();
+  
+  // find nearest top 5 drivers from MongoDB
+  const restaurantCoordinate = await Utils.getLatLng(req.user.street + ", " + req.user.city + ", " + req.user.state + " " + req.user.zipCode);
+  const onlineDriverLocations = await driverLocation.find({
+    location: {
+        $near: {
+            $geometry: {
+                type: "Point",
+                coordinates: [restaurantCoordinate.longitude, restaurantCoordinate.latitude]
+            }
+        }
+    }
+  }).limit(5);
+
+  // return data
+  nearestDriverDistances = []
+  // calculate the precise distance between each driver to the restaurant
+  for (let i = 0; i < onlineDriverLocations.length; i++) {
+    const driverCoordinate = onlineDriverLocations[i].location.coordinates[1] + ", " + onlineDriverLocations[i].location.coordinates[0]
+    const result = await Utils.calculateDistance(restaurantCoordinate, driverCoordinate);
+    nearestDriverDistances.push({
+      "driverId": onlineDriverLocations[i].driverId,
+      "distance": result.distance
+    })
+  }
+  // sort all drivers by distance
+  nearestDriverDistances.sort((a, b) => {
+    return a.distance - b.distance;
+  });
+
+  // filter out driver ids
+  const nearestDriverIds = [];
+  nearestDriverDistances.map(item => {
+    nearestDriverIds.push(item.driverId);
+  })
+  // find driver infos from MySQL
+  const driverInfos = await db.driver.findMany({
+    where: {
+      id: {
+        in: nearestDriverIds
+      }
+    },
+    select: {
+      firstName: true,
+      lastName: true
+    }
+  })
+
+  // attach driver info into return data
+  for (let i = 0; i < nearestDriverDistances.length; i++) {
+    nearestDriverDistances[i].name = driverInfos[i].firstName + " " + driverInfos[i].lastName;
+  }
+  
+  Utils.makeResponse(res, 200, {
+    avaliableDriversCount: avaliableDriversCount,
+    drivers: nearestDriverDistances
   });
 });
 
