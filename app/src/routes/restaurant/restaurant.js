@@ -83,6 +83,7 @@ router.post('/', postRestaurantSignUpValidator, async function(req, res) {
     }
   });
   
+  await req.codeExist.remove()
   Utils.makeResponse(res, 200, "Restaurant account created successfully");
 });
 
@@ -171,6 +172,7 @@ router.get('/reset/emailCode', getRestaurantResetPasswordEmailCodeValidator, asy
       accountType: "RestaurantReset",
   }]);
 
+  await req.codeExist.remove()
   Utils.makeResponse(res, 200, "Code sent to your email, it will expire in 5 mins");
 });
 

@@ -70,6 +70,8 @@ router.post('/', postDriverSignUpValidator, async function(req, res) {
         stripeAccountId: stripeAccountId
     }
   });
+
+  await req.codeExist.remove();
   
   Utils.makeResponse(res, 200, "Driver account created successfully");
 });
@@ -158,7 +160,8 @@ router.patch('/reset/password', postDriverResetPasswordValidator, async function
       passwordHash: Utils.generatePasswordHash(req.body.password)
     }
   });
-  
+
+  await req.codeExist.remove();
   Utils.makeResponse(res, 200, "Succeed");
 });
 

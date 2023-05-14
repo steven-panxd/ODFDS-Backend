@@ -45,7 +45,7 @@ const postRestaurantSignUpValidator = [
       return Promise.reject("Email verification code is wrong, please try again");
     }
 
-    await codeExist.remove();
+    req.codeExist = codeExist;
   }),
   Utils.validate
 ]
@@ -112,7 +112,7 @@ const postRestaurantResetPasswordValidator = [
       return Promise.reject("Email verification code is wrong, please try again");
     }
 
-    await codeExist.remove();
+    req.codeExist = codeExist;
   }),
   Utils.validate
 ]
